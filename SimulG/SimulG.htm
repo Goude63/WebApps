@@ -10,8 +10,8 @@
 <body onload="init();"> 
 	<table width="100%" style="background-color: rgb(197, 194, 194);"><tr>
 	<td>
-		<label for="sys">Système:</label>
-		<select id = "sys" onchange="Run(this.selectedIndex);"></td>
+		<label id="labsys" for="sys">Système:</label>
+		<select id = "sys" onchange="Start(this.selectedIndex);"></td>
 	</tr></table>
 	<canvas id="simulg" width="100" height="100">
 		Un browser supportant les canvas doit être utilisé.
