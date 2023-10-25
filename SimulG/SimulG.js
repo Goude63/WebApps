@@ -1,14 +1,14 @@
 const G = 6.67E-11;
 const AU = 1.495978707E11; // 1 AU in meters
-const MAX_TRACE = 400;
+const MAX_TRACE = 600;
 const TILT_RAD = -Math.PI*70/180;
 const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian
 const COS_TETA = Math.cos(TILT_RAD); 
 
-var cfg = { pause:false, tilt:false, trace:true, text:true, fakeR:false, scale:1 };
+var cfg = { lang:'en', pause:false, view:'3d', trace:true, 
+			text:true, fake_r:false, scale:1, step:50 }; // animation step in ms
 var Timer = null;
 var InStep = false;
-var lang = 'en';
 var State = null;
 var ww, wh, wcx, wcy; // current canvas size and center
 var TotTime, StepCnt;
@@ -17,8 +17,14 @@ function init() {
 	canvas = document.getElementById("simulg");
 	ctx = canvas.getContext("2d");
 	cfg = JSON.parse(GetLS('cfg', JSON.stringify(cfg)));
+	if (!cfg.step) cfg.step = 50;
+	cfg.step = 10;
+	if (cfg.view != '3d' && cfg.view !='top') cfg.view = '3d';
+	document.getElementById(cfg.view).checked = true;
+	document.getElementById('trace').checked = cfg.trace;
+	document.getElementById('radius').checked = cfg.fake_r;
 	// UpdtCfg();
-	DoResize(); 
+	DoResize(); 	
 	window.addEventListener('resize', Resize)
 	canvas.addEventListener('wheel', Wheel);
 	canvas.addEventListener('click', Click)
@@ -34,7 +40,7 @@ function GetLS(name,def) {
 	return v; }
 
 // String with a '|' in the middle are french|english options
-function ENFR(s) { let ll = s.split('|'); return (lang.toLowerCase() == 'en' | ll.length==1)?ll[0]:ll[1]; }
+function ENFR(s) { let ll = s.split('|'); return (cfg.lang.toLowerCase() == 'en' | ll.length==1)?ll[0]:ll[1]; }
 function ClearTrace() {	State.items.forEach(e=>{e.trace=[]}); }
 function Wheel(e) {
 	let up =  e.wheelDeltaY>0;
@@ -76,16 +82,24 @@ function ZoomTraces(nz) {
 		})})
 	cfg.scale *= nz;
 }
-function SetSysLang(){
+function SetSysLang(newLang) {
 	let sys_list = '';
+	if (newLang) { UpdtCfg('lang',newLang) }
+	document.getElementById('lang').value = cfg.lang.toUpperCase();
 	DB.forEach((sys)=>{sys_list += '<option>' + ENFR(sys.name) + '</option>'})
 	document.getElementById('sys').innerHTML = sys_list;
 	document.getElementById('labsys').innerHTML = ENFR('System:|Système:');
 	document.getElementById('laborg').innerHTML = ENFR('Center:|Centre:');
+	document.getElementById('view').innerHTML = ENFR('View:|Vue:');
+	document.getElementById('labtop').innerHTML = ENFR('Top|Dessus');
+	document.getElementById('lab3d').innerHTML = ENFR('3d');
 	document.getElementById('org').title = 
-		ENFR("You can also click on the object|Vous pouvez aussi cliquer sur l'objet");
+		ENFR("You can also [ctrl] click on the object|Vous pouvez aussi faire [ctrl] clic sur l'objet");
+	document.getElementById('radius').title = 
+		ENFR("Show exagerated radius|Montrer un rayon exagéré ");
 	document.getElementById('labtime').innerHTML = ENFR('Time elapsed:|Temps écoulé:');
 	document.getElementById('labspeed').innerHTML = ENFR('Speed:|Vitesse:');
+	if (State) Start(State.ix);
 }
 // Distances in AU, masses in kg, speeds in km/s, radius in km
 // TBD allow saving / editing in local storage
@@ -142,7 +156,7 @@ function LoadDB() {
 			{name:"Pluto|Pluton", c:'#F5DCCE', r:1188, m:1.3E22,
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 		
-		{ name:"Apollo", speed:300, center:0, scale:0.001,
+		{ name:"Apollo", speed:300, center:0, scale:0.002, fake_r:false,
 		items: [
 			{name:"Earth|Terre", c:'#A0A0FF', r:6378, m:5.98E24,
 				x:0, y:0, z:1, vx:-29.8, vy:0, vz:0} ,
@@ -191,6 +205,11 @@ function Start(ix) {
 	SetLS('sys', ix); 
 	if (ix >= 0 && ix < DB.length) {
 		State = JSON.parse(JSON.stringify(DB[ix])); // Deep clone
+		State.ix = ix;
+		if(State.fake_r !== undefined) {
+			cfg.fake_r = State.fake_r; 
+			document.getElementById('radius').checked = cfg.fake_r;
+		}
 		PopulateOrgSel();
 		cfg.scale = State.scale; cfg.speed = State.speed;
 		UpdtCfg();
@@ -203,18 +222,18 @@ function Start(ix) {
 		document.getElementById('sys').selectedIndex = ix;
 		TotTime = 0; StepCnt = 0;
 		t0 = Date.now();
-		Timer = setInterval(Step, 50);
+		Timer = setInterval(Step, cfg.step);
 	}
 }
 // Animate one simulation Step called by timer
 function Step() {
-	const N = 50;
-
+	const N = 200;
 	if (cfg.pause || InStep) return;
 
 	InStep = true;
-	t1 = Date.now();
-	dt = cfg.speed * (t1 - t0) / 1000;
+	let t1 = Date.now();
+	let dt = cfg.speed * cfg.step / 1000;
+	// console.log(t1-t0);
 	TotTime += dt;
 	dt /= N;
 	Draw();
@@ -239,7 +258,13 @@ function DisplayTime() {
 	document.getElementById('time').value = show;
 }
 
-function UpdtCfg() {
+function UpdtCfg(name,val) {
+	if(name&&(val !== undefined)) {
+		if (typeof(val) == 'string') val = val.toLowerCase()
+		name = name.toLowerCase()
+		cfg[name]=val;
+		if (!('trace|fake_r'.includes(name))) ClearTrace();
+	}
 	SetLS('cfg', JSON.stringify(cfg));
 	UpdtFooter()
 }
@@ -274,11 +299,11 @@ function Draw() {
 		x = e.x - ox; y = oz - e.z; z = e.y - oy;  // space relative to reference object
 
 		x = x * scale + wcx;
-		if (cfg.tilt) y = y*COS_TETA + z*SIN_TETA;
+		if (cfg.view=='3d') y = y*COS_TETA + z*SIN_TETA;
 		y = y * scale + wcy;
 
 		// compute radius
-		if (cfg.fakeR) r = Math.round(.05*(e.m ** rsc));
+		if (cfg.fake_r) r = Math.round(.05*(e.m ** rsc));
 		else r = e.r * 1000 * scale; // r is given in km. Convert to AU
 		if (r<1) r = 1;
 
@@ -298,12 +323,12 @@ function Draw() {
 			if (l == 1 && d >= 2) tr.push({x,y});
 		    else if(l>1) { 
 				// more than two trace points, take the decision on angle change > 1 degree
-				const onedeg = Math.PI/180;
+				const maxdeg = 2*Math.PI/180; // 2 degrees
 				let p1 = tr[l-2];
 				let p2 = tr[l-1]; // p3 is x,y
 				let a1 = Math.atan2(p2.x-p1.x, p2.y-p1.y);
 				let a2 = Math.atan2(x-p2.x, y-p2.y);
-				if (Math.abs(a2-a1) > onedeg || d>10) tr.push({x,y});
+				if (Math.abs(a2-a1) > maxdeg || d>10) tr.push({x,y});
 		}	}
 		if (tr.length > MAX_TRACE) tr.shift();
 
@@ -322,6 +347,7 @@ function Draw() {
 
 // Find closest object and set as center
 function Click(clk) {
+	if (clk.button)
 	var x,y,z,d; // object coordinate conversion (space to screen)
 	let ww = window.innerWidth;
 	let wh = window.innerHeight;
@@ -334,14 +360,23 @@ function Click(clk) {
 	State.items.forEach((e,i)=>{
 		x = e.x - ox; y = oz - e.z; z = e.y - oy;  // space relative to reference object		
 		x = x * scale + wcx;
-		if (cfg.tilt) y = y*COS_TETA + z*SIN_TETA;
+		if (cfg.view=='3d') y = y*COS_TETA + z*SIN_TETA;
 		y = y * scale + wcy;
 
 		d = Math.sqrt((x-clk.clientX)**2 + (y-clk.clientY)**2);
 		if (d < mind && d<100) {mind =d; mix = i }
 	})
 	// console.log(mix, mind, State.items[mix].name);
-	if (mix>=0 && mix!=State.center) CenterOn(mix);		
+
+	let cancel = false;
+	if (mix>=0) {
+		cancel = true;
+		if(clk.ctrlKey && mix!=State.center) CenterOn(mix);
+		else if(clk.ctrlKey) {
+		}// Diplay object info TBD}
+		else cancel = false;		
+	}
+	if (cancel) clk.preventDefault();
 }
 
 function CenterOn(ix) {
