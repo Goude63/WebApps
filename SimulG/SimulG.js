@@ -85,6 +85,7 @@ function ZoomTraces(nz) {
 function SetSysLang(newLang) {
 	let sys_list = '';
 	if (newLang) { UpdtCfg('lang',newLang) }
+	if (!cfg.lang) cfg.lang = 'en';
 	document.getElementById('lang').value = cfg.lang.toUpperCase();
 	DB.forEach((sys)=>{sys_list += '<option>' + ENFR(sys.name) + '</option>'})
 	document.getElementById('sys').innerHTML = sys_list;
