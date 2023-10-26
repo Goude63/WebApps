@@ -4,6 +4,10 @@ body { background-color: black; overflow:hidden; color:black}
 input {	background-color: transparent; border: none;}
 span { display:inline-block; }
 
-table {	background-color: rgb(197, 194, 194);
-	padding:0; margin: 0; border-width: 2px solid;}
+table {	background-color: rgb(197, 194, 194); padding:0; margin: 0; border-width: 2px solid;}
+td {width:0%;}
+
+.bpause { animation: blink 1s steps(1, end) infinite; font-size:calc(max(18px,1.7vh));}
+.pause { font-size:calc(max(18px,1.7vh));}
+@keyframes blink {0% {opacity: 1;}50% {	opacity: 0.3;}100% { opacity: 1; }}	
 

@@ -13,8 +13,12 @@
 		<select id = "sys" onchange="Start(this.selectedIndex);"></select></td>
 	<td><label id="laborg" for="org">Center on:</label>
 		<select id = "org" onchange="CenterOn(this.selectedIndex);"></select></td>
+	<td><label id="pause" onclick="Pause();">&#x23F8;</label></td>
 	<td><label id="labtrace" for="trace">Trace:</label>
-		<input type="checkbox" id = "trace" onchange="UpdtCfg('trace',this.checked);"></select></td>		
+		<input type="checkbox" id = "trace" onchange="UpdtCfg('trace', this.checked);"></select>
+		&nbsp;&nbsp;
+	<label id="labR" for="radius">R:</label>
+		<input type="checkbox" id = "radius" onchange="UpdtCfg('fake_r',this.checked);"></select></td>		
 	<td><label id="view">View</label>&nbsp;<span>
 		<label id="labtop" for="top">
 			Top</label><input type="radio" id="top" name="view" value="top" onclick="UpdtCfg('view', this.value);">
@@ -22,8 +26,6 @@
 			3d</label><input type="radio" id="3d" name="view" value="3d" onclick="UpdtCfg('view', this.value);">
 		</span></td>
 	
-	<td><label id="labR" for="radius">R:</label>
-		<input type="checkbox" id = "radius" onchange="UpdtCfg('fake_r',this.checked);"></select></td>		
 	<td><select id = "lang" onchange="SetSysLang(this.value);">
 		<option>EN</option><option>FR</option></select></td>
 	</tr></table>

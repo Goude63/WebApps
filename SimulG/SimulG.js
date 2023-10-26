@@ -18,7 +18,7 @@ function init() {
 	ctx = canvas.getContext("2d");
 	cfg = JSON.parse(GetLS('cfg', JSON.stringify(cfg)));
 	if (!cfg.step) cfg.step = 50;
-	cfg.step = 10;
+	cfg.step = 10; Pause(cfg.pause);
 	if (cfg.view != '3d' && cfg.view !='top') cfg.view = '3d';
 	document.getElementById(cfg.view).checked = true;
 	document.getElementById('trace').checked = cfg.trace;
@@ -47,7 +47,8 @@ function Wheel(e) {
 	if (e.ctrlKey) cfg.speed *= up?2:0.5;
 	else ZoomTraces((!up)?1/0.9:0.9);  
 	e.preventDefault();
-	UpdtFooter();
+	if (cfg.pause) Draw()
+	UpdtFooter();;
 }
 var ResTo = null;
 function Resize(){ clearTimeout(ResTo);	ResTo = setTimeout(DoResize, 100); }
@@ -73,6 +74,7 @@ function DoResize() {
 	ctx.canvas.height = CVH; 
 	wcx = Math.floor(ww/2);  // window center
 	wcy = Math.floor(wh/2);
+	if (cfg.pause) Draw();
 }
 // Rescale 2d traces to new zoom
 function ZoomTraces(nz) {
@@ -92,7 +94,7 @@ function SetSysLang(newLang) {
 	document.getElementById('labsys').innerHTML = ENFR('System:|Système:');
 	document.getElementById('laborg').innerHTML = ENFR('Center:|Centre:');
 	document.getElementById('view').innerHTML = ENFR('View:|Vue:');
-	document.getElementById('labtop').innerHTML = ENFR('Top|Dessus');
+	document.getElementById('labtop').innerHTML = ENFR('top|dessus');
 	document.getElementById('lab3d').innerHTML = ENFR('3d');
 	document.getElementById('org').title = 
 		ENFR("You can also [ctrl] click on the object|Vous pouvez aussi faire [ctrl] clic sur l'objet");
@@ -221,6 +223,7 @@ function Start(ix) {
 			e.trace=[]}) 	// Create empty trace
 		CenterOn(State.center);
 		document.getElementById('sys').selectedIndex = ix;
+		Draw();
 		TotTime = 0; StepCnt = 0;
 		t0 = Date.now();
 		Timer = setInterval(Step, cfg.step);
@@ -264,10 +267,20 @@ function UpdtCfg(name,val) {
 		if (typeof(val) == 'string') val = val.toLowerCase()
 		name = name.toLowerCase()
 		cfg[name]=val;
-		if (!('trace|fake_r'.includes(name))) ClearTrace();
+		if (!('trace|fake_r|lang'.includes(name))) ClearTrace();
+		Draw();
 	}
 	SetLS('cfg', JSON.stringify(cfg));
 	UpdtFooter()
+}
+
+function Pause(val) {
+	if (val == undefined) val = !cfg.pause;
+	cfg.pause=val;
+	let cl=val?'bpause':'pause';
+	html='<div class="' + cl + '">&#x23F8;</div>';
+	document.getElementById('pause').innerHTML=html;
+	UpdtCfg();
 }
 function UpdtFooter() {
 	document.getElementById('speed').value = Math.round(cfg.speed) + ':1'; 
@@ -283,6 +296,7 @@ function GetMassCenter(set) {
 // for speed optimisation, a lot is done inside this 'one' function
 // This is less clean 'visually' but 
 function Draw() {
+	if (!State) return;
 	var x,y,z; // object coordinate conversion (space to screen)
 	const full = 2 * Math.PI;
 
@@ -293,8 +307,12 @@ function Draw() {
 	let fh = Math.min(30,Math.max(10, ww/100/cfg.scale));
 	ctx.font= Math.floor(fh) + 'px serif';
 
-	if (State.center >=0) {
-		let c = State.items[State.center]; ox = c.x; oy = c.y; oz = c.z; }
+	if (State.center < 0) {
+		let center = GetMassCenter(State.items);
+		ox = center.x; oy = center.y; oz = center.z; 
+	} else {
+		let c = State.items[State.center]; 
+		ox = c.x; oy = c.y; oz = c.z; }
 
 	State.items.forEach((e)=>{
 		x = e.x - ox; y = oz - e.z; z = e.y - oy;  // space relative to reference object
@@ -383,11 +401,7 @@ function Click(clk) {
 function CenterOn(ix) {
 	ClearTrace();
 	// last choice is org is "center of mass"
-	if (ix < 0 || ix == State.items.length) { 
-		let center = GetMassCenter(State.items);
-		ox = center.x; oy = center.y; oz = center.z; 
-		ix = -1;
-	}
+	if (ix == State.items.length) ix = -1;
 	State.center = ix;
 	if (ix<0) ix = State.items.length;
 	document.getElementById('org').selectedIndex = ix;
@@ -396,7 +410,7 @@ function CenterOn(ix) {
 function PopulateOrgSel() {
 	let html = '';
 	State.items.forEach(e=>{html += '<option>' + ENFR(e.name) + '</option>'});
-	html += '<option>' + ENFR('Mass Center|Centre de masse') + '</option>'
+	html += '<option>' + ENFR('Mass Center|Ctr de G') + '</option>'
 	document.getElementById('org').innerHTML = html;
 }
 
