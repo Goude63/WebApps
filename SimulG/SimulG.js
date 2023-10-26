@@ -6,19 +6,15 @@ const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian
 const COS_TETA = Math.cos(TILT_RAD); 
 
 var cfg = { lang:'en', pause:false, view:'3d', trace:true, 
-			text:true, fake_r:false, scale:1, step:50 }; // animation step in ms
-var Timer = null;
-var InStep = false;
-var State = null;
-var ww, wh, wcx, wcy; // current canvas size and center
-var TotTime, StepCnt;
+			text:true, fake_r:false, scale:1, n:200 }; // animation step in ms
 
 function init() {
 	canvas = document.getElementById("simulg");
 	ctx = canvas.getContext("2d");
 	cfg = JSON.parse(GetLS('cfg', JSON.stringify(cfg)));
-	if (!cfg.step) cfg.step = 50;
-	cfg.step = 10; Pause(cfg.pause);
+	Pause(cfg.pause);
+	cfg_step = 20; 
+	if (!cfg.n) cfg.n = 200;
 	if (cfg.view != '3d' && cfg.view !='top') cfg.view = '3d';
 	document.getElementById(cfg.view).checked = true;
 	document.getElementById('trace').checked = cfg.trace;
@@ -108,7 +104,7 @@ function SetSysLang(newLang) {
 // TBD allow saving / editing in local storage
 function LoadDB() {
 	DB = [
-		{ name:"Solar System|Système Solaire", speed:2E6, center:0, scale: 50,
+		{ name:"Solar System|Système Solaire", speed:2E6, center:-1, scale: 50,
 		items: [
 			{name:"Sun|Soleil", c:'#FFFFA0', r:695508, m:1.99E30,
 				x:0, y:0, z:0, vx:0, vy:0, vz:0},
@@ -131,7 +127,7 @@ function LoadDB() {
 			{name:"Pluto|Pluton", c:'#F5DCCE', r:1188, m:1.3E22,
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 
-		{ name:"Terrestrial Planets|Planètes terrestres", speed:2E6, center:0, scale: 3,
+		{ name:"Terrestrial Planets|Planètes terrestres", speed:2E6, center:-1, scale: 3,
 		items: [
 			{name:"Sun|Soleil", c:'#FFFFA0', r:695508, m:1.99E30,
 				x:0, y:0, z:0, vx:0, vy:0, vz:0},
@@ -144,7 +140,7 @@ function LoadDB() {
 			{name:"Mars", c:'#F59C5A', r:3390, m:6.417E23,
 				x:1.5226, y:0.0505, z:0, vx:0, vy:0, vz:24.1}]},
 
-		{ name:"Jovian Planets|Planètes joviennes", speed:5E7, center:0, scale: 60,
+		{ name:"Jovian Planets|Planètes joviennes", speed:5E7, center:-1, scale: 60,
 		items: [
 			{name:"Sun|Soleil", c:'#FFFFA0', r:695508, m:1.99E30,
 				x:0, y:0, z:0, vx:0, vy:0, vz:0},
@@ -159,14 +155,14 @@ function LoadDB() {
 			{name:"Pluto|Pluton", c:'#F5DCCE', r:1188, m:1.3E22,
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 		
-		{ name:"Apollo", speed:300, center:0, scale:0.002, fake_r:false,
+		{ name:"Apollo", speed:100, center:0, scale:0.002, fake_r:false,
 		items: [
 			{name:"Earth|Terre", c:'#A0A0FF', r:6378, m:5.98E24,
 				x:0, y:0, z:1, vx:-29.8, vy:0, vz:0} ,
 			{name:"Sun|Soleil", c:'#FFFFA0', r:696340, m:1.99E30,
 				x:0, y:0, z:0, vx:0, vy:0, vz:0}, 
-			{name:"capsule", c:'#808080', r:0.02, m:1050,
-				x:4.7E-5, y:0, z:0.999976, vx:-24.332, vy:0, vz:8.341},
+			{name:"csm", c:'#808080', r:0.02, m:1050,
+				x:4.7E-5, y:0, z:0.999976, vx:-24.3320, vy:0, vz:8.3393},
 			{name:"Moon|Lune", c:'#C0C0C0', r:1737, m:7.36E22,
 				x:0, y:0, z:1.0026, vx:-30.82, vy:0, vz:0}]},
 
@@ -203,9 +199,17 @@ function Influence(dt) {
 			ApplyForce(list[j],dtf,-1); // reaction :)
 		}
 }
+
+var Timer = null;
+var InStep = false;
+var State = null;
+var ww, wh, wcx, wcy; // current canvas size and center
+var TotTime, StepChk;
+// var N = 200;
 function Start(ix) {
 	if (Timer) { clearInterval(Timer); Timer = null; }
 	SetLS('sys', ix); 
+	StepChk = 1;
 	if (ix >= 0 && ix < DB.length) {
 		State = JSON.parse(JSON.stringify(DB[ix])); // Deep clone
 		State.ix = ix;
@@ -214,8 +218,7 @@ function Start(ix) {
 			document.getElementById('radius').checked = cfg.fake_r;
 		}
 		PopulateOrgSel();
-		cfg.scale = State.scale; cfg.speed = State.speed;
-		UpdtCfg();
+		cfg.scale = State.scale; cfg.speed = State.speed; UpdtCfg();		
 		State.items.forEach(e => {
 			e.name = ENFR(e.name);
 			e.x *= AU; e.y *= AU; e.z *= AU; 			//  AU to meters
@@ -226,29 +229,48 @@ function Start(ix) {
 		Draw();
 		TotTime = 0; StepCnt = 0;
 		t0 = Date.now();
-		Timer = setInterval(Step, cfg.step);
+		Timer = setInterval(Step, cfg_step);
 	}
 }
-// Animate one simulation Step called by timer
-function Step() {
-	const N = 200;
-	if (cfg.pause || InStep) return;
 
-	InStep = true;
+// If needed, adjust animation timer for slower device
+function ChkStepSpeed() {
 	let t1 = Date.now();
-	let dt = cfg.speed * cfg.step / 1000;
-	// console.log(t1-t0);
-	TotTime += dt;
-	dt /= N;
+	let dtr = (t1-t0)/cfg_step; // relative error in processing time
+	t0 = t1;
+	if (dtr > 1.5) StepChk *= 1.07;
+	else if (dtr < 1) StepChk *= 0.99; // 
+	let updtstep = 0;
+	if (StepChk > 2) updtstep =  2;
+	else if (StepChk < 0.5) updtstep = 0.5;
+	if (updtstep) {
+		StepChk = 1;
+		let newstep = Math.round(cfg_step * updtstep);
+		if (newstep < 10) 
+			UpdtCfg('N', Math.round(cfg.n*1.5)); // no need to animate faster: decrease discretization steps
+		else if(cfg.n > 200 && cfg_step >= 20 && updtstep > 1)
+			UpdtCfg('N', Math.round(cfg.n/1.5));
+		else { 
+			cfg_step = newstep; 
+			clearInterval(Timer);
+			Timer = setInterval(Step, cfg_step); } 
+		document.getElementById('dbug').value = 't/N=' + cfg_step +'/'+ cfg.n;
+}	}
+
+// Animate one simulation Step called by timer
+function Step() {	
+	if (cfg.pause || InStep) return;
+	InStep = true;
+	let dt = cfg.speed * cfg_step / 1000;	
+	TotTime += dt; dt /= cfg.n;
 	Draw();
 	// Do Nx Influence and Move without redraw to minimize discretization errors
-	for (let n=0; n<N; n++) { 
+	for (let n=0; n<cfg.n; n++) { 
 		Influence(dt); 
 		State.items.forEach(e => { 
 			e.x += e.vx * dt; e.y += e.vy * dt; e.z += e.vz * dt; })}
-	t0 = t1;
-	if (StepCnt%10 ==0) DisplayTime();
-	StepCnt += 1;
+	if (StepCnt++%10 ==0) DisplayTime();
+	ChkStepSpeed(); // Slow down animation for slower devices
 	InStep = false;
 }
 
@@ -304,8 +326,8 @@ function Draw() {
 
 	let scale = ww/2/cfg.scale/AU;
 	let rsc = 0.06 + Math.sqrt(scale) * 150; // used to gerate fake radius 
-	let fh = Math.min(30,Math.max(10, ww/100/cfg.scale));
-	ctx.font= Math.floor(fh) + 'px serif';
+	let fh = Math.min(25,Math.max(12, ww/100/cfg.scale));
+	ctx.font= Math.floor(fh) + 'px Arial';
 
 	if (State.center < 0) {
 		let center = GetMassCenter(State.items);
@@ -350,7 +372,6 @@ function Draw() {
 				if (Math.abs(a2-a1) > maxdeg || d>10) tr.push({x,y});
 		}	}
 		if (tr.length > MAX_TRACE) tr.shift();
-
 		if (cfg.text) ctx.fillText(e.name,x+r, y+r+fh);			
 
 		// draw trace/orbit
