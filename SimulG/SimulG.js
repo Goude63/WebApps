@@ -4,29 +4,25 @@ const MAX_TRACE = 600;
 const TILT_RAD = -Math.PI*70/180;
 const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian
 const COS_TETA = Math.cos(TILT_RAD); 
-
-var cfg = { lang:'en', pause:false, view:'3d', trace:true, 
-			text:true, fake_r:false, scale:1, n:200 }; // animation step in ms
+var cfg; 
 
 function init() {
 	canvas = document.getElementById("simulg");
 	ctx = canvas.getContext("2d");
-	cfg = JSON.parse(GetLS('cfg', JSON.stringify(cfg)));
-	Pause(cfg.pause);
+	try   {cfg = JSON.parse(GetLS('cfg', JSON.stringify(cfg)))}
+	catch {};
 	cfg_step = 20; 
-	if (!cfg.n) cfg.n = 200;
-	if (cfg.view != '3d' && cfg.view !='top') cfg.view = '3d';
-	document.getElementById(cfg.view).checked = true;
-	document.getElementById('trace').checked = cfg.trace;
-	document.getElementById('radius').checked = cfg.fake_r;
-	// UpdtCfg();
-	DoResize(); 	
+	UpdtCfg(); // save and update GUI 
+
 	window.addEventListener('resize', Resize)
 	canvas.addEventListener('wheel', Wheel);
 	canvas.addEventListener('click', Click)
+	window.addEventListener('keydown', KeyDown)
 	LoadDB();
-	SetSysLang(); // for language
+	SetSysLang(); // for language 
+	DoResize();
 	Start(GetLS('sys',0));
+	Resize();
 }
 function SetLS(name,v) { localStorage.setItem('SG_' + name, v) }
 function GetLS(name,def) {
@@ -79,6 +75,25 @@ function ZoomTraces(nz) {
 			pt.y = (pt.y-wcy) / nz + wcy;
 		})})
 	cfg.scale *= nz;
+	UpdtFooter();
+}
+function KeyDown(kev) {
+	let key = kev.key.toLowerCase(); 
+	if(key == ' ') { Pause(); return }
+	let ud = '+-'.indexOf(key); 
+	if (ud >= 0) {
+		if (kev.ctrlKey) cfg.speed *= (ud==0)?2:0.5;
+		else ZoomTraces((ud==1)?1/0.9:0.9);  
+		kev.preventDefault();
+		if (cfg.pause) Draw()
+		UpdtFooter(); }
+	else if ('na'.includes(key)) UpdtCfg('text', !cfg.text);
+	else if ('ot'.includes(key)) UpdtCfg('trace', !cfg.trace);
+	else if (key=='r') UpdtCfg('fake_r', !cfg.fake_r);
+	else if (key=='2') UpdtCfg('view', '2d');
+	else if (key=='3') UpdtCfg('view', '3d');
+	else if (kev.code=='PageDown') Start((gix+1)%DB.length);
+	else if (kev.code=='PageUp')   Start((gix+DB.length-1)%DB.length);
 }
 function SetSysLang(newLang) {
 	let sys_list = '';
@@ -90,19 +105,18 @@ function SetSysLang(newLang) {
 	document.getElementById('labsys').innerHTML = ENFR('System:|Système:');
 	document.getElementById('laborg').innerHTML = ENFR('Center:|Centre:');
 	document.getElementById('view').innerHTML = ENFR('View:|Vue:');
-	document.getElementById('labtop').innerHTML = ENFR('top|dessus');
+	document.getElementById('labtop').innerHTML = ENFR('2d');
 	document.getElementById('lab3d').innerHTML = ENFR('3d');
 	document.getElementById('org').title = 
 		ENFR("You can also [ctrl] click on the object|Vous pouvez aussi faire [ctrl] clic sur l'objet");
 	document.getElementById('radius').title = 
 		ENFR("Show exagerated radius|Montrer un rayon exagéré ");
-	document.getElementById('labtime').innerHTML = ENFR('Time elapsed:|Temps écoulé:');
+	document.getElementById('labtime').innerHTML = ENFR('Duration:|Durée:');
 	document.getElementById('labspeed').innerHTML = ENFR('Speed:|Vitesse:');
 	if (State) Start(State.ix);
 }
-// Distances in AU, masses in kg, speeds in km/s, radius in km
-// TBD allow saving / editing in local storage
 function LoadDB() {
+	// Distances in AU, masses in kg, speeds in km/s, radius in km
 	DB = [
 		{ name:"Solar System|Système Solaire", speed:2E6, center:-1, scale: 50,
 		items: [
@@ -155,7 +169,7 @@ function LoadDB() {
 			{name:"Pluto|Pluton", c:'#F5DCCE', r:1188, m:1.3E22,
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 		
-		{ name:"Apollo", speed:100, center:0, scale:0.002, fake_r:false,
+		{ name:"Apollo", speed:6000, center:0, scale:0.002, fake_r:false,
 		items: [
 			{name:"Earth|Terre", c:'#A0A0FF', r:6378, m:5.98E24,
 				x:0, y:0, z:1, vx:-29.8, vy:0, vz:0} ,
@@ -205,12 +219,14 @@ var InStep = false;
 var State = null;
 var ww, wh, wcx, wcy; // current canvas size and center
 var TotTime, StepChk;
+var gix = 0;
 // var N = 200;
 function Start(ix) {
 	if (Timer) { clearInterval(Timer); Timer = null; }
 	SetLS('sys', ix); 
 	StepChk = 1;
 	if (ix >= 0 && ix < DB.length) {
+		gix = ix;
 		State = JSON.parse(JSON.stringify(DB[ix])); // Deep clone
 		State.ix = ix;
 		if(State.fake_r !== undefined) {
@@ -233,7 +249,7 @@ function Start(ix) {
 	}
 }
 
-// If needed, adjust animation timer for slower device
+// Adjust animation timer/discretisation for CPU capabilities
 function ChkStepSpeed() {
 	let t1 = Date.now();
 	let dtr = (t1-t0)/cfg_step; // relative error in processing time
@@ -247,14 +263,14 @@ function ChkStepSpeed() {
 		StepChk = 1;
 		let newstep = Math.round(cfg_step * updtstep);
 		if (newstep < 10) 
-			UpdtCfg('N', Math.round(cfg.n*1.5)); // no need to animate faster: decrease discretization steps
+			UpdtCfg('n', Math.round(cfg.n*1.5)); // no need to animate faster: decrease discretization steps
 		else if(cfg.n > 200 && cfg_step >= 20 && updtstep > 1)
-			UpdtCfg('N', Math.round(cfg.n/1.5));
+			UpdtCfg('n', Math.round(cfg.n/1.5));
 		else { 
 			cfg_step = newstep; 
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
-		document.getElementById('dbug').value = 't/N=' + cfg_step +'/'+ cfg.n;
+		document.getElementById('dbug').innerHTML = 't:' + cfg_step +'ms, N:'+ cfg.n;
 }	}
 
 // Animate one simulation Step called by timer
@@ -281,17 +297,31 @@ function DisplayTime() {
 	else if (days>30) show = (days/30.42).toFixed(1) + ENFR(' months| mois');	
 	else if (days>1) show = days.toFixed(1) + ENFR(' days| jours');
 	else show = (TotTime/3600).toFixed(1) + ENFR(' hours| heures');
-	document.getElementById('time').value = show;
+	document.getElementById('time').innerHTML = show;
 }
 
+// Update GUI options and save cfg in localstorage
 function UpdtCfg(name,val) {
+	if (!cfg) 
+		cfg = { lang:'en', pause:false, view:'3d', trace:true, text:true, fake_r:false, scale:1, n:200 }
 	if(name&&(val !== undefined)) {
 		if (typeof(val) == 'string') val = val.toLowerCase()
 		name = name.toLowerCase()
 		cfg[name]=val;
-		if (!('trace|fake_r|lang'.includes(name))) ClearTrace();
-		Draw();
-	}
+		if (('view'.includes(name))) ClearTrace();
+		if (cfg.pause) Draw();
+	}	
+	if (!cfg.n) cfg.n = 200;
+	if (cfg.view != '3d' && cfg.view !='2d') cfg.view = '3d';
+	document.getElementById(cfg.view).checked = true;
+	document.getElementById('trace').checked = cfg.trace;
+	document.getElementById('radius').checked = cfg.fake_r;
+	document.getElementById('text').checked = cfg.text;
+
+	let cl='pause' + (cfg.pause?' blink':'');
+	html='<div class="' + cl + '">&#x23F8;</div>';
+	document.getElementById('pause').innerHTML=html;
+
 	SetLS('cfg', JSON.stringify(cfg));
 	UpdtFooter()
 }
@@ -299,13 +329,11 @@ function UpdtCfg(name,val) {
 function Pause(val) {
 	if (val == undefined) val = !cfg.pause;
 	cfg.pause=val;
-	let cl=val?'bpause':'pause';
-	html='<div class="' + cl + '">&#x23F8;</div>';
-	document.getElementById('pause').innerHTML=html;
 	UpdtCfg();
 }
 function UpdtFooter() {
-	document.getElementById('speed').value = Math.round(cfg.speed) + ':1'; 
+	document.getElementById('speed').innerHTML = Math.round(cfg.speed) + ':1';
+	document.getElementById('scale').innerHTML = (cfg.scale).toFixed(1) + ' ' +ENFR('AU|UA');
 }
 
 function GetMassCenter(set) {
@@ -326,7 +354,8 @@ function Draw() {
 
 	let scale = ww/2/cfg.scale/AU;
 	let rsc = 0.06 + Math.sqrt(scale) * 150; // used to gerate fake radius 
-	let fh = Math.min(25,Math.max(12, ww/100/cfg.scale));
+	let fh = Math.min(25,Math.max(10, ww/50/cfg.scale));
+
 	ctx.font= Math.floor(fh) + 'px Arial';
 
 	if (State.center < 0) {
@@ -354,7 +383,7 @@ function Draw() {
 		ctx.fillStyle = e.c;
 		ctx.fill();
 
-		// track screen 2d trace of object. Tracking 3d does not show retrogradation
+		// track screen 2d trace of object. (Tracking 3d does not show retrogradation)
 		let tr = e.trace;
 		let l = tr.length;
 		if (l == 0) tr.push({x,y});
@@ -380,6 +409,7 @@ function Draw() {
 			ctx.lineWidth = 1;
 			ctx.strokeStyle = e.c;
 			tr.forEach(pt=>{ ctx.lineTo(pt.x, pt.y); })			
+			ctx.lineTo(x,y);
 			ctx.stroke();
 		}
 	})
@@ -389,12 +419,7 @@ function Draw() {
 function Click(clk) {
 	if (clk.button)
 	var x,y,z,d; // object coordinate conversion (space to screen)
-	let ww = window.innerWidth;
-	let wh = window.innerHeight;
-	let wcx = Math.floor(ww/2);
-	let wcy = Math.floor(wh/2);
 	let scale = ww/2/cfg.scale/AU;
-
 	let mind = 1E500, mix = -1;
 
 	State.items.forEach((e,i)=>{
@@ -408,15 +433,15 @@ function Click(clk) {
 	})
 	// console.log(mix, mind, State.items[mix].name);
 
-	let cancel = false;
+	let prev = false;
 	if (mix>=0) {
-		cancel = true;
+		prev = true;
 		if(clk.ctrlKey && mix!=State.center) CenterOn(mix);
 		else if(clk.ctrlKey) {
 		}// Diplay object info TBD}
-		else cancel = false;		
+		else prev = false;		
 	}
-	if (cancel) clk.preventDefault();
+	if (prev) clk.preventDefault();
 }
 
 function CenterOn(ix) {

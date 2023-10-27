@@ -14,30 +14,35 @@
 	<td><label id="laborg" for="org">Center on:</label>
 		<select id = "org" onchange="CenterOn(this.selectedIndex);"></select></td>
 	<td><label id="pause" onclick="Pause();">&#x23F8;</label></td>
-	<td><label id="labtrace" for="trace">Trace:</label>
-		<input type="checkbox" id = "trace" onchange="UpdtCfg('trace', this.checked);"></select>
-		&nbsp;&nbsp;
-	<label id="labR" for="radius">R:</label>
-		<input type="checkbox" id = "radius" onchange="UpdtCfg('fake_r',this.checked);"></select></td>		
-	<td><label id="view">View</label>&nbsp;<span>
-		<label id="labtop" for="top">
-			Top</label><input type="radio" id="top" name="view" value="top" onclick="UpdtCfg('view', this.value);">
-		<label id="lab3d" for="3d">
-			3d</label><input type="radio" id="3d" name="view" value="3d" onclick="UpdtCfg('view', this.value);">
-		</span></td>
-	
-	<td><select id = "lang" onchange="SetSysLang(this.value);">
-		<option>EN</option><option>FR</option></select></td>
+	<td><span><label id="labtrace" for="trace">&nbsp;~:</label>
+		<input type="checkbox" id = "trace" onchange="UpdtCfg('trace', this.checked);">
+		</input></span>
+		<span><label id="labR" for="radius">&nbsp;R:</label>
+		<input type="checkbox" id = "radius" onchange="UpdtCfg('fake_r',this.checked);"></input></span>
+		<span><label id="labname" for="name">&nbsp;abc:</label>
+		<input type="checkbox" id = "text" onchange="UpdtCfg('text',this.checked);">
+		</input></span></td>
+	<td><label id="view">View</label> <span>
+		<input type="radio" id="2d" name="view" value="2d" onclick="UpdtCfg('view', this.value);">
+		<label id="labtop" for="top">2d</label>
+		<input type="radio" id="3d" name="view" value="3d" onclick="UpdtCfg('view', this.value);">
+		<label id="lab3d" for="3d">3d</label></span></td>
+	<td style="text-align:right;">
+		<select id = "lang" onchange="SetSysLang(this.value);">
+		<option>EN</option><option>FR</option></select>&nbsp;</td>
 	</tr></table>
 	<canvas id="simulg" width="100" height="100" style="background-color: black;">
 		Un browser supportant les canvas doit être utilisé.
 		E.g. Chrome, Firefox, Edge...
 	</canvas>
 	<table id="footer" width="100%"><tr>
-	<td><label id="labspeed" for="speed">Speed:</label>
-		<input id="speed" type="text" readonly/></td>
-	<td><input id="dbug" type="text" readonly/></td>
-	<td><label id="labtime" for="time">Time elapsed:</label>
-		<input id="time" type="text" readonly/></td>
+	<td><label id="labspeed" for="speed">Speed:</label><label id="speed"></label>
+		<button class="pmbtn" onclick="UpdtCfg('speed',cfg.speed*2);">+</button>
+		<button class="pmbtn" onclick="UpdtCfg('speed',cfg.speed/2);">-</button></td>
+	<td><label id="labscale" for="scale">Scale:</label><label id="scale"></label>
+		<button class="pmbtn" onclick="ZoomTraces(0.9);">+</button>
+		<button class="pmbtn" onclick="ZoomTraces(1/0.9);">-</button></td>
+	<td><label id="dbug"></label></td>
+	<td><label id="labtime" for="time">Duration:</label><label id="time"></label></td>
 	</tr></table>	
 </body>
