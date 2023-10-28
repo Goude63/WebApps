@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
-<title>Simulateur Gravitationel</title>
+<title>Gravitational Simulator</title>
 <html lang="en">
 <head>	
 	<link rel="icon" type="image/png" href="solar-system.png" sizes="32x32">
@@ -29,7 +29,9 @@
 		<label id="lab3d" for="3d">3d</label></span></td>
 	<td style="text-align:right;">
 		<select id = "lang" onchange="SetSysLang(this.value);">
-		<option>EN</option><option>FR</option></select>&nbsp;</td>
+		<option>EN</option><option>FR</option></select>&nbsp; 
+		<button onclick="Help();">&nbsp;?&nbsp;</button>&nbsp; 
+	</td>
 	</tr></table>
 	<canvas id="simulg" width="100" height="100" style="background-color: black;">
 		Un browser supportant les canvas doit être utilisé.

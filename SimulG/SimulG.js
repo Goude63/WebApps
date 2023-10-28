@@ -32,7 +32,10 @@ function GetLS(name,def) {
 	return v; }
 
 // String with a '|' in the middle are french|english options
-function ENFR(s) { let ll = s.split('|'); return (cfg.lang.toLowerCase() == 'en' | ll.length==1)?ll[0]:ll[1]; }
+function ENFR(s) { 
+	let ll = s.split('|'); 
+	return (cfg.lang.toLowerCase() == 'en' | ll.length==1)?ll[0]:ll[1]; 
+}
 function ClearTrace() {	State.items.forEach(e=>{e.trace=[]}); }
 function Wheel(e) {
 	let up =  e.wheelDeltaY>0;
@@ -67,6 +70,9 @@ function DoResize() {
 	wcx = Math.floor(ww/2);  // window center
 	wcy = Math.floor(wh/2);
 	if (cfg.pause) Draw();
+}
+function Help() {
+	window.open('Help_' + cfg.lang + '.htm', 'help').focus();
 }
 // Rescale 2d traces to new zoom
 function ZoomTraces(nz) {
@@ -255,22 +261,22 @@ function ChkStepSpeed() {
 	let dtr = (t1-t0)/cfg_step; // relative error in processing time
 	t0 = t1;
 	if (dtr > 1.5) StepChk *= 1.07;
-	else if (dtr < 1) StepChk *= 0.99; // 
+	else if (dtr <= 1) StepChk *= 0.99; // No difficulty dealing with the load
 	let updtstep = 0;
-	if (StepChk > 2) updtstep =  2;
-	else if (StepChk < 0.5) updtstep = 0.5;
+	if (StepChk > 2) updtstep =  2;  // Need to CPU reduce the load
+	else if (StepChk < 0.5) updtstep = 0.5;  // can increase the CPU load
 	if (updtstep) {
-		StepChk = 1;
+		StepChk = 1; // reset cumulative/relative load
 		let newstep = Math.round(cfg_step * updtstep);
 		if (newstep < 10) 
-			UpdtCfg('n', Math.round(cfg.n*1.5)); // no need to animate faster: decrease discretization steps
+			UpdtCfg('n', Math.round(cfg.n*1.5)); // max animation speed: decrease sub dt
 		else if(cfg.n > 200 && cfg_step >= 20 && updtstep > 1)
 			UpdtCfg('n', Math.round(cfg.n/1.5));
 		else { 
 			cfg_step = newstep; 
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
-		document.getElementById('dbug').innerHTML = 't:' + cfg_step +'ms, N:'+ cfg.n;
+		document.getElementById('dbug').innerHTML = 't:' + cfg_step +'ms, n:'+ cfg.n;
 }	}
 
 // Animate one simulation Step called by timer
@@ -303,7 +309,7 @@ function DisplayTime() {
 // Update GUI options and save cfg in localstorage
 function UpdtCfg(name,val) {
 	if (!cfg) 
-		cfg = { lang:'en', pause:false, view:'3d', trace:true, text:true, fake_r:false, scale:1, n:200 }
+		cfg = { lang:'en', pause:false, view:'3d', trace:true, text:true, fake_r:true, scale:1, n:200 }
 	if(name&&(val !== undefined)) {
 		if (typeof(val) == 'string') val = val.toLowerCase()
 		name = name.toLowerCase()

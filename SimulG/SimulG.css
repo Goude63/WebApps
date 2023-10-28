@@ -10,5 +10,11 @@ td {width:fit-content;vertical-align: center;}
 @keyframes blink {0% {opacity: 1;}50% {	opacity: 0.3;}100% { opacity: 1; }}	
 .pause { font-size:calc(max(18px,1.7vh)); }
 .blink { animation: blink 1s steps(1, end) infinite;}
-.pmbtn { width:5vw } 
+.pmbtn { width:5vw }
+
+.help {margin:5px;padding:2px;border: 2px solid;
+    border-collapse: collapse;width: 80%;}
+.hr {border-bottom:1pt solid black;}
+.right {text-align:right;margin:5px;padding-right:5px; padding-left:5px; }
+.left  {text-align:left;margin:5px;padding-right:5px;  }
 
