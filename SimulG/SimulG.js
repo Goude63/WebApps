@@ -4,7 +4,7 @@ const MAX_TRACE = 600;
 const TILT_RAD = -Math.PI*70/180;
 const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian
 const COS_TETA = Math.cos(TILT_RAD); 
-var cfg; 
+var cfg,dbug; 
 
 function init() {
 	canvas = document.getElementById("simulg");
@@ -19,7 +19,7 @@ function init() {
 	canvas.addEventListener('click', Click)
 	window.addEventListener('keydown', KeyDown)
 	LoadDB();
-	SetSysLang(); // for language 
+	SetAppLang(); // for language 
 	DoResize();
 	Start(GetLS('sys',0));
 	Resize();
@@ -85,12 +85,12 @@ function ZoomTraces(nz) {
 }
 function KeyDown(kev) {
 	let key = kev.key.toLowerCase(); 
-	if(key == ' ') { Pause(); return }
 	let ud = '+-'.indexOf(key); 
-	if (ud >= 0) {
+	let prev = true;
+	if(key == ' ') Pause(); 
+	else if (ud >= 0) {
 		if (kev.ctrlKey) cfg.speed *= (ud==0)?2:0.5;
-		else ZoomTraces((ud==1)?1/0.9:0.9);  
-		kev.preventDefault();
+		else ZoomTraces((ud==1)?1/0.9:0.9);  		
 		if (cfg.pause) Draw()
 		UpdtFooter(); }
 	else if ('na'.includes(key)) UpdtCfg('text', !cfg.text);
@@ -98,18 +98,24 @@ function KeyDown(kev) {
 	else if (key=='r') UpdtCfg('fake_r', !cfg.fake_r);
 	else if (key=='2') UpdtCfg('view', '2d');
 	else if (key=='3') UpdtCfg('view', '3d');
-	else if (kev.code=='PageDown') Start((gix+1)%DB.length);
-	else if (kev.code=='PageUp')   Start((gix+DB.length-1)%DB.length);
+	else if (key=='d') dbug = !dbug;
+	else if (kev.code=='PageDown') Start((State.ix+1)%DB.length);
+	else if (kev.code=='PageUp')   Start((State.ix+DB.length-1)%DB.length);	
+	else prev = false;
+	if (prev) kev.preventDefault();
 }
-function SetSysLang(newLang) {
+function SetAppLang(newLang) {
 	let sys_list = '';
 	if (newLang) { UpdtCfg('lang',newLang) }
 	if (!cfg.lang) cfg.lang = 'en';
 	document.getElementById('lang').value = cfg.lang.toUpperCase();
-	DB.forEach((sys)=>{sys_list += '<option>' + ENFR(sys.name) + '</option>'})
+	DB.forEach((sys)=>{
+		let opt ='<option';
+		if (sys.hint) opt += ' Title="' + ENFR(sys.hint) + '"';
+		sys_list += opt + '>' + ENFR(sys.name) + '</option>'});
 	document.getElementById('sys').innerHTML = sys_list;
 	document.getElementById('labsys').innerHTML = ENFR('System:|Système:');
-	document.getElementById('laborg').innerHTML = ENFR('Center:|Centre:');
+	document.getElementById('laborg').innerHTML = ENFR('Reference:|Référence:');
 	document.getElementById('view').innerHTML = ENFR('View:|Vue:');
 	document.getElementById('labtop').innerHTML = ENFR('2d');
 	document.getElementById('lab3d').innerHTML = ENFR('3d');
@@ -125,6 +131,7 @@ function LoadDB() {
 	// Distances in AU, masses in kg, speeds in km/s, radius in km
 	DB = [
 		{ name:"Solar System|Système Solaire", speed:2E6, center:-1, scale: 50,
+		  hint:"All planets|Toutes les planètes",
 		items: [
 			{name:"Sun|Soleil", c:'#FFFFA0', r:695508, m:1.99E30,
 				x:0, y:0, z:0, vx:0, vy:0, vz:0},
@@ -176,6 +183,7 @@ function LoadDB() {
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 		
 		{ name:"Apollo", speed:6000, center:0, scale:0.002, fake_r:false,
+		  hint:"Free return trajectory|Trajectoire de retour vers la terre",
 		items: [
 			{name:"Earth|Terre", c:'#A0A0FF', r:6378, m:5.98E24,
 				x:0, y:0, z:1, vx:-29.8, vy:0, vz:0} ,
@@ -225,14 +233,12 @@ var InStep = false;
 var State = null;
 var ww, wh, wcx, wcy; // current canvas size and center
 var TotTime, StepChk;
-var gix = 0;
 // var N = 200;
 function Start(ix) {
 	if (Timer) { clearInterval(Timer); Timer = null; }
 	SetLS('sys', ix); 
 	StepChk = 1;
 	if (ix >= 0 && ix < DB.length) {
-		gix = ix;
 		State = JSON.parse(JSON.stringify(DB[ix])); // Deep clone
 		State.ix = ix;
 		if(State.fake_r !== undefined) {
@@ -276,7 +282,8 @@ function ChkStepSpeed() {
 			cfg_step = newstep; 
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
-		document.getElementById('dbug').innerHTML = 't:' + cfg_step +'ms, n:'+ cfg.n;
+		let dbg = dbug?'t:' + cfg_step +'ms, n:'+ cfg.n:''; 
+		document.getElementById('dbug').innerHTML = dbg;
 }	}
 
 // Animate one simulation Step called by timer
@@ -350,10 +357,36 @@ function GetMassCenter(set) {
 	return {'x': cx/mt, 'y': cy/mt, 'z':cz/mt}
 }
 // for speed optimisation, a lot is done inside this 'one' function
-// This is less clean 'visually' but 
+// This is less clean 'visually' but... runs faster
 function Draw() {
+	// show position and speed information of object
+	function Details(l, obj) {
+		var rx,ry,rz, rvx, rvy, rvz;
+		let ty = 20 + l * 14;
+		let lablst = ['x', 'y', 'z', 'vx', 'vy', 'vz', '|v|'];
+		let vallst = [];
+		if (State.center < 0) {
+			rx = obj.x - ox; ry = obj.y - oy; rz = obj.z - oz;
+			rvx = obj.vx; rvy = obj.vy, rvz = obj.vz;
+		} else {
+			let robj = State.items[State.center];
+			rx = obj.x - robj.x; ry = obj.y - robj.y; rz = obj.z - robj.z;
+			rvx = obj.vx - robj.vx; rvy = obj.vy  - robj.vy, rvz = obj.vz - robj.vz;
+		}
+		let rv = Math.sqrt(rvx**2+rvy**2+rvz**2);
+		vallst.push(rx, ry, rz, rvx, rvy, rvz, rv);
+		ctx.font= '12px Arial';
+		ctx.fillText(obj.name, 10, ty);
+		let det = '=>';
+		vallst.forEach((v,i)=>{
+			det += '  ' + lablst[i] + ':' + Number.parseFloat(v).toExponential(2);
+		})
+		ctx.fillText(det, 52, ty);
+	}	
+
 	if (!State) return;
 	var x,y,z; // object coordinate conversion (space to screen)
+	let line = 0;
 	const full = 2 * Math.PI;
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -362,9 +395,8 @@ function Draw() {
 	let rsc = 0.06 + Math.sqrt(scale) * 150; // used to gerate fake radius 
 	let fh = Math.min(25,Math.max(10, ww/50/cfg.scale));
 
-	ctx.font= Math.floor(fh) + 'px Arial';
-
-	if (State.center < 0) {
+	if (State.center < 0) { 
+		// re-calculate mass center in case the whole system is moving
 		let center = GetMassCenter(State.items);
 		ox = center.x; oy = center.y; oz = center.z; 
 	} else {
@@ -372,13 +404,14 @@ function Draw() {
 		ox = c.x; oy = c.y; oz = c.z; }
 
 	State.items.forEach((e)=>{
-		x = e.x - ox; y = oz - e.z; z = e.y - oy;  // space relative to reference object
+		// relative 'space' position to reference object
+		x = e.x - ox; y = oz - e.z; z = e.y - oy;  
 
 		x = x * scale + wcx;
 		if (cfg.view=='3d') y = y*COS_TETA + z*SIN_TETA;
 		y = y * scale + wcy;
 
-		// compute radius
+		// compute exagerated radius is requested
 		if (cfg.fake_r) r = Math.round(.05*(e.m ** rsc));
 		else r = e.r * 1000 * scale; // r is given in km. Convert to AU
 		if (r<1) r = 1;
@@ -396,7 +429,8 @@ function Draw() {
 		else {
 			let lt = tr.slice(-1)[0]; // last item in trace
 			let d = Math.sqrt((lt.x-x)**2 + (lt.y-y)**2);
-			if (l == 1 && d >= 2) tr.push({x,y});
+			if (l == 1 && d > 0.1) 
+				tr.push({x,y});
 		    else if(l>1) { 
 				// more than two trace points, take the decision on angle change > 1 degree
 				const maxdeg = 2*Math.PI/180; // 2 degrees
@@ -407,7 +441,11 @@ function Draw() {
 				if (Math.abs(a2-a1) > maxdeg || d>10) tr.push({x,y});
 		}	}
 		if (tr.length > MAX_TRACE) tr.shift();
-		if (cfg.text) ctx.fillText(e.name,x+r, y+r+fh);			
+		if (cfg.text) { 
+			ctx.font= Math.floor(fh) + 'px Arial';
+			ctx.fillText(e.name,x+r, y+r+fh);
+		}
+		if (e.details) Details(line++, e)
 
 		// draw trace/orbit
 		if (cfg.trace && tr.length>1) {
@@ -420,6 +458,7 @@ function Draw() {
 		}
 	})
 }
+
 
 // Find closest object and set as center
 function Click(clk) {
@@ -442,9 +481,8 @@ function Click(clk) {
 	let prev = false;
 	if (mix>=0) {
 		prev = true;
-		if(clk.ctrlKey && mix!=State.center) CenterOn(mix);
-		else if(clk.ctrlKey) {
-		}// Diplay object info TBD}
+		if(clk.shiftKey && mix!=State.center) CenterOn(mix);
+		else if(clk.ctrlKey) State.items[mix].details = !State.items[mix].details;
 		else prev = false;		
 	}
 	if (prev) clk.preventDefault();
