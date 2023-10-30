@@ -4,9 +4,11 @@ const MAX_TRACE = 600;
 const TILT_RAD = -Math.PI*70/180;
 const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian
 const COS_TETA = Math.cos(TILT_RAD); 
-var cfg,dbug; 
+var cfg, cfg_step, dbug = true;
+var pz, touch = 'ontouchstart' in window;
+var canvas, ctx, DB, ox, oy, oz, t0;
 
-function init() {
+export function init() {
 	canvas = document.getElementById("simulg");
 	ctx = canvas.getContext("2d");
 	try   {cfg = JSON.parse(GetLS('cfg', JSON.stringify(cfg)))}
@@ -18,19 +20,32 @@ function init() {
 	canvas.addEventListener('wheel', Wheel);
 	canvas.addEventListener('click', Click)
 	window.addEventListener('keydown', KeyDown)
+	if (touch) { 
+		canvas.addEventListener('touchstart', Touch);
+		canvas.addEventListener('touchmove', Touch);
+		canvas.addEventListener('touchend', Touch);
+		canvas.addEventListener('touchcancel', Touch);
+	}	
 	LoadDB();
 	SetAppLang(); // for language 
 	DoResize();
 	Start(GetLS('sys',0));
 	Resize();
 }
+
+var touch = {};
+function Touch(e) {
+	ShowDbug(e.touches.length)
+}
+
 function SetLS(name,v) { localStorage.setItem('SG_' + name, v) }
+function ShowDbug(txt) { if (dbug) document.getElementById('dbug').innerHTML = txt;}
+
 function GetLS(name,def) {
 	name = 'SG_' + name;
 	let v = localStorage.getItem(name);
 	if (v===undefined || v === null) v = def;
 	return v; }
-
 // String with a '|' in the middle are french|english options
 function ENFR(s) { 
 	let ll = s.split('|'); 
@@ -71,11 +86,11 @@ function DoResize() {
 	wcy = Math.floor(wh/2);
 	if (cfg.pause) Draw();
 }
-function Help() {
+export function Help() {
 	window.open('Help_' + cfg.lang + '.htm', 'help').focus();
 }
 // Rescale 2d traces to new zoom
-function ZoomTraces(nz) {
+export function ZoomTraces(nz) {
 	State.items.forEach(e=> { e.trace.forEach(pt=>{
 			pt.x = (pt.x-wcx) / nz + wcx;
 			pt.y = (pt.y-wcy) / nz + wcy;
@@ -104,7 +119,7 @@ function KeyDown(kev) {
 	else prev = false;
 	if (prev) kev.preventDefault();
 }
-function SetAppLang(newLang) {
+export function SetAppLang(newLang) {
 	let sys_list = '';
 	if (newLang) { UpdtCfg('lang',newLang) }
 	if (!cfg.lang) cfg.lang = 'en';
@@ -227,14 +242,13 @@ function Influence(dt) {
 			ApplyForce(list[j],dtf,-1); // reaction :)
 		}
 }
-
 var Timer = null;
 var InStep = false;
 var State = null;
 var ww, wh, wcx, wcy; // current canvas size and center
-var TotTime, StepChk;
+var TotTime, StepChk, StepCnt ;
 // var N = 200;
-function Start(ix) {
+export function Start(ix) {
 	if (Timer) { clearInterval(Timer); Timer = null; }
 	SetLS('sys', ix); 
 	StepChk = 1;
@@ -260,7 +274,6 @@ function Start(ix) {
 		Timer = setInterval(Step, cfg_step);
 	}
 }
-
 // Adjust animation timer/discretisation for CPU capabilities
 function ChkStepSpeed() {
 	let t1 = Date.now();
@@ -275,15 +288,14 @@ function ChkStepSpeed() {
 		StepChk = 1; // reset cumulative/relative load
 		let newstep = Math.round(cfg_step * updtstep);
 		if (newstep < 10) 
-			UpdtCfg('n', Math.round(cfg.n*1.5)); // max animation speed: decrease sub dt
+			UpdtCfg('n', 1.5); // max animation speed: decrease sub dt
 		else if(cfg.n > 200 && cfg_step >= 20 && updtstep > 1)
-			UpdtCfg('n', Math.round(cfg.n/1.5));
+			UpdtCfg('n', 1/1.5);
 		else { 
 			cfg_step = newstep; 
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
-		let dbg = dbug?'t:' + cfg_step +'ms, n:'+ cfg.n:''; 
-		document.getElementById('dbug').innerHTML = dbg;
+		// ShowDbug('t:' + cfg_step +'ms, n:'+ cfg.n)		
 }	}
 
 // Animate one simulation Step called by timer
@@ -302,7 +314,6 @@ function Step() {
 	ChkStepSpeed(); // Slow down animation for slower devices
 	InStep = false;
 }
-
 function DisplayTime() {
 	let days = TotTime/86400;
 	var show;
@@ -312,15 +323,15 @@ function DisplayTime() {
 	else show = (TotTime/3600).toFixed(1) + ENFR(' hours| heures');
 	document.getElementById('time').innerHTML = show;
 }
-
 // Update GUI options and save cfg in localstorage
-function UpdtCfg(name,val) {
+export function UpdtCfg(name,val) {
 	if (!cfg) 
 		cfg = { lang:'en', pause:false, view:'3d', trace:true, text:true, fake_r:true, scale:1, n:200 }
 	if(name&&(val !== undefined)) {
 		if (typeof(val) == 'string') val = val.toLowerCase()
-		name = name.toLowerCase()
-		cfg[name]=val;
+		name = name.toLowerCase();
+		if (typeof(val) === 'number') cfg[name] *= val;
+		else cfg[name]=val; // boolean or string
 		if (('view'.includes(name))) ClearTrace();
 		if (cfg.pause) Draw();
 	}	
@@ -332,14 +343,13 @@ function UpdtCfg(name,val) {
 	document.getElementById('text').checked = cfg.text;
 
 	let cl='pause' + (cfg.pause?' blink':'');
-	html='<div class="' + cl + '">&#x23F8;</div>';
+	let html='<div class="' + cl + '">&#x23F8;</div>';
 	document.getElementById('pause').innerHTML=html;
 
 	SetLS('cfg', JSON.stringify(cfg));
 	UpdtFooter()
 }
-
-function Pause(val) {
+export function Pause(val) {
 	if (val == undefined) val = !cfg.pause;
 	cfg.pause=val;
 	UpdtCfg();
@@ -348,7 +358,6 @@ function UpdtFooter() {
 	document.getElementById('speed').innerHTML = Math.round(cfg.speed) + ':1';
 	document.getElementById('scale').innerHTML = (cfg.scale).toFixed(1) + ' ' +ENFR('AU|UA');
 }
-
 function GetMassCenter(set) {
 	let cx=0, cy=0, cz=0, mt = 0;
 	set.forEach(e=>{
@@ -385,7 +394,7 @@ function Draw() {
 	}	
 
 	if (!State) return;
-	var x,y,z; // object coordinate conversion (space to screen)
+	var x,y,z,r; // object coordinate conversion (space to screen)
 	let line = 0;
 	const full = 2 * Math.PI;
 
@@ -458,8 +467,6 @@ function Draw() {
 		}
 	})
 }
-
-
 // Find closest object and set as center
 function Click(clk) {
 	if (clk.button)
@@ -487,8 +494,7 @@ function Click(clk) {
 	}
 	if (prev) clk.preventDefault();
 }
-
-function CenterOn(ix) {
+export function CenterOn(ix) {
 	ClearTrace();
 	// last choice is org is "center of mass"
 	if (ix == State.items.length) ix = -1;
@@ -496,11 +502,9 @@ function CenterOn(ix) {
 	if (ix<0) ix = State.items.length;
 	document.getElementById('org').selectedIndex = ix;
 }
-
 function PopulateOrgSel() {
 	let html = '';
 	State.items.forEach(e=>{html += '<option>' + ENFR(e.name) + '</option>'});
 	html += '<option>' + ENFR('Mass Center|Ctr de G') + '</option>'
 	document.getElementById('org').innerHTML = html;
 }
-

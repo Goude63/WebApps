@@ -5,32 +5,35 @@
 <head>	
 	<link rel="icon" type="image/png" href="solar-system.png" sizes="32x32">
 	<link rel="stylesheet" href="SimulG.css" type="text/css">
-	<script type="text/javascript" src="SimulG.js"> </script>
+	<script type="module">
+		import {init, UpdtCfg, Help, SetAppLang, ZoomTraces, Start, Pause, CenterOn} from "./SimulG.js";
+		window.m = {init, UpdtCfg, Help, SetAppLang, ZoomTraces, Start, Pause, CenterOn}
+	</script>
 </head>
-<body onload="init();"> 
+<body onload="m.init();"> 
 	<table id="header" width="100%"><tr>
 	<td><label id="labsys" for="sys">System:</label>
-		<select id = "sys" onchange="Start(this.selectedIndex);"></select></td>
+		<select id = "sys" onchange="m.Start(this.selectedIndex);"></select></td>
 	<td><label id="laborg" for="org">Center on:</label>
-		<select id = "org" onchange="CenterOn(this.selectedIndex);"></select></td>
-	<td><label id="pause" onclick="Pause();">&#x23F8;</label></td>
+		<select id = "org" onchange="m.CenterOn(this.selectedIndex);"></select></td>
+	<td><label id="pause" onclick="m.Pause();">&#x23F8;</label></td>
 	<td><span><label id="labtrace" for="trace">&nbsp;~:</label>
-		<input type="checkbox" id = "trace" onchange="UpdtCfg('trace', this.checked);">
+		<input type="checkbox" id = "trace" onchange="m.UpdtCfg('trace', this.checked);">
 		</input></span>
 		<span><label id="labR" for="radius">&nbsp;R:</label>
-		<input type="checkbox" id = "radius" onchange="UpdtCfg('fake_r',this.checked);"></input></span>
+		<input type="checkbox" id = "radius" onchange="m.UpdtCfg('fake_r',this.checked);"></input></span>
 		<span><label id="labname" for="name">&nbsp;abc:</label>
-		<input type="checkbox" id = "text" onchange="UpdtCfg('text',this.checked);">
+		<input type="checkbox" id = "text" onchange="m.UpdtCfg('text',this.checked);">
 		</input></span></td>
 	<td><label id="view">View</label> <span>
-		<input type="radio" id="2d" name="view" value="2d" onclick="UpdtCfg('view', this.value);">
+		<input type="radio" id="2d" name="view" value="2d" onclick="m.UpdtCfg('view', this.value);">
 		<label id="labtop" for="top">2d</label>
-		<input type="radio" id="3d" name="view" value="3d" onclick="UpdtCfg('view', this.value);">
+		<input type="radio" id="3d" name="view" value="3d" onclick="m.UpdtCfg('view', this.value);">
 		<label id="lab3d" for="3d">3d</label></span></td>
 	<td style="text-align:right;">
-		<select id = "lang" onchange="SetAppLang(this.value);">
+		<select id = "lang" onchange="m.SetAppLang(this.value);">
 		<option title="English">EN</option><option title="Français">FR</option></select>&nbsp; 
-		<button onclick="Help();">&nbsp;?&nbsp;</button>&nbsp; 
+		<button onclick="m.Help();">&nbsp;?&nbsp;</button>&nbsp; 
 	</td>
 	</tr></table>
 	<canvas id="simulg" width="100" height="100" style="background-color: black;">
@@ -39,11 +42,11 @@
 	</canvas>
 	<table id="footer" width="100%"><tr>
 	<td><label id="labspeed" for="speed">Speed:</label><label id="speed"></label>
-		<button class="pmbtn" onclick="UpdtCfg('speed',cfg.speed*2);">+</button>
-		<button class="pmbtn" onclick="UpdtCfg('speed',cfg.speed/2);">-</button></td>
+		<button class="pmbtn" onclick="m.UpdtCfg('speed', 2);">+</button>
+		<button class="pmbtn" onclick="m.UpdtCfg('speed', 0.5);">-</button></td>
 	<td><label id="labscale" for="scale">Scale:</label><label id="scale"></label>
-		<button class="pmbtn" onclick="ZoomTraces(0.9);">+</button>
-		<button class="pmbtn" onclick="ZoomTraces(1/0.9);">-</button></td>
+		<button class="pmbtn" onclick="m.ZoomTraces(0.9);">+</button>
+		<button class="pmbtn" onclick="m.ZoomTraces(1/0.9);">-</button></td>
 	<td><label id="dbug"></label></td>
 	<td><label id="labtime" for="time">Duration:</label><label id="time"></label></td>
 	</tr></table>	
