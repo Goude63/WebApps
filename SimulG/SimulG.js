@@ -2,11 +2,14 @@ const G = 6.67E-11;
 const AU = 1.495978707E11; // 1 AU in meters
 const MAX_TRACE = 600;
 const TILT_RAD = -Math.PI*70/180;
-const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian
+const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian for 3d view
 const COS_TETA = Math.cos(TILT_RAD); 
 var cfg, cfg_step, dbug = true;
 var pz, touch = 'ontouchstart' in window;
 var canvas, ctx, DB, ox, oy, oz, t0;
+var panx = 0, pany = 0;
+
+function SetLS(name,v) { localStorage.setItem('SG_' + name, v) }
 
 export function init() {
 	canvas = document.getElementById("simulg");
@@ -16,31 +19,80 @@ export function init() {
 	cfg_step = 20; 
 	UpdtCfg(); // save and update GUI 
 
-	window.addEventListener('resize', Resize)
+	window.addEventListener('resize', Resize);
 	canvas.addEventListener('wheel', Wheel);
-	canvas.addEventListener('click', Click)
-	window.addEventListener('keydown', KeyDown)
+	window.addEventListener('keydown', KeyDown);
+
+	// handle mouse events
+	['mousedown', 'mousemove', 'mouseup'].forEach(evn => {
+		canvas.addEventListener(evn, Mouse); });
+
+	//  and touch events
 	if (touch) { 
-		canvas.addEventListener('touchstart', Touch);
-		canvas.addEventListener('touchmove', Touch);
-		canvas.addEventListener('touchend', Touch);
-		canvas.addEventListener('touchcancel', Touch);
-	}	
+		['touchstart', 'touchmove', 'touchend', 'touchcancel'].forEach(evn => {
+			canvas.addEventListener(evn, Touch); })	}	
+
 	LoadDB();
 	SetAppLang(); // for language 
 	DoResize();
 	Start(GetLS('sys',0));
-	Resize();
+	setInterval(ChkWSize, 500);
 }
 
-var touch = {};
+// Mouse event handling section
+const MS=Object.freeze({up:Symbol('up'), down:Symbol('down')});
+var ms = { mode:MS.up,lx:-1,ly:-1,ls:0,t0:0 }; // mouse state
+function Mouse(e) {
+	let t = Date.now();
+	let dt = t - ms.t0;
+	switch (e.type) {
+	case 'mousedown' : ms.lx = e.x; ms.ly = e.y; ms.mode = MS.down; ms.t0 = t; break;
+	case 'mouseup'   : ms.mode = MS.up; if (dt<200) Click(ms.lx, ms.ly, e); break;
+	case 'mousemove' : if (dt>100 && ms.mode == MS.down) {
+		let d = Math.hypot(e.x-ms.lx, e.y-ms.ly);
+		if (d>5) { panx += e.x-ms.lx; pany += e.y-ms.ly; ms.lx = e.x; ms.ly = e.y; }
+}	} 	}
+
+// Touch events handling section
+const TM=Object.freeze({idle:Symbol('idle'),speed:Symbol('speed'),dbl:Symbol('dbl'),wait:Symbol('wait')});
+function TM2S(tm) {switch(tm){case TM.idle:return 'idle';case TM.speed:return 'speed';case TM.dbl:return 'dbl';case TM.wait:return 'wait';} return 'undefined'; }// Just for debug
+var ts = { n:0, mode:TM.idle,cx:-1,cy:-1,ls:0,lt:0 }; //  touch state
 function Touch(e) {
-	ShowDbug(e.touches.length)
+	ts.n = e.touches.length
+
+	Dbug(e.type +  '  md=' + TM2S(ts.mode) + '  n=' + e.touches.length );
+	e.preventDefault();
 }
 
-function SetLS(name,v) { localStorage.setItem('SG_' + name, v) }
-function ShowDbug(txt) { if (dbug) document.getElementById('dbug').innerHTML = txt;}
+// Find closest object and set as center or display details
+function Click(clx, cly, evt) {
+	var x,y,z,d; // object coordinate conversion (space to screen)
+	let scale = ww/2/cfg.scale/AU;
+	let mind = 1E500, mix = -1;
 
+	State.items.forEach((e,i)=>{
+		x = e.x - ox; y = oz - e.z; z = e.y - oy;  // space relative to reference object		
+		x = x * scale + wcx + panx;
+		if (cfg.view=='3d') y = y*COS_TETA + z*SIN_TETA;
+		y = y * scale + wcy + pany;
+
+		d = Math.hypot(x-clx, y-cly);
+		if (d < mind && d<100) {mind =d; mix = i }
+	})
+	// console.log(mix, mind, State.items[mix].name);
+
+	if (mix>=0) {
+		if(evt.shiftKey && mix!=State.center) CenterOn(mix);
+		else State.items[mix].details = !State.items[mix].details;
+		evt.preventDefault();
+}	}
+
+export function Dbug(txt) { 
+	if (!dbug) return;
+	let dbl = document.getElementById('dbug');
+	if (txt) dbl.innerHTML = txt;
+	else dbl.innerHTML='';
+}
 function GetLS(name,def) {
 	name = 'SG_' + name;
 	let v = localStorage.getItem(name);
@@ -62,12 +114,13 @@ function Wheel(e) {
 }
 var ResTo = null;
 function Resize(){ clearTimeout(ResTo);	ResTo = setTimeout(DoResize, 100); }
-function DoResize() {
+function DoResize(mch) { // mh : measure height
 	// Offset traces to new screen center 
 	let hdr = document.getElementById('header');
 	let ftr = document.getElementById('footer');
 	let CVH = window.innerHeight - hdr.offsetHeight - ftr.offsetHeight;
 	CVH -= ftr.getBoundingClientRect().top - canvas.getBoundingClientRect().bottom;
+	if (mch) return CVH;
 	if (State) {		
 		let dsc = window.innerWidth / ww;  // scale change
 		let cx2 = Math.floor(window.innerWidth/2);
@@ -86,6 +139,11 @@ function DoResize() {
 	wcy = Math.floor(wh/2);
 	if (cfg.pause) Draw();
 }
+function ChkWSize() {
+	let hh = DoResize(true);
+	if (Math.abs(hh - ctx.canvas.height)> 2) 
+		DoResize(); 
+}
 export function Help() {
 	window.open('Help_' + cfg.lang + '.htm', 'help').focus();
 }
@@ -96,6 +154,8 @@ export function ZoomTraces(nz) {
 			pt.y = (pt.y-wcy) / nz + wcy;
 		})})
 	cfg.scale *= nz;
+	panx = Math.round(panx / nz);
+	pany = Math.round(pany / nz);
 	UpdtFooter();
 }
 function KeyDown(kev) {
@@ -116,6 +176,7 @@ function KeyDown(kev) {
 	else if (key=='d') dbug = !dbug;
 	else if (kev.code=='PageDown') Start((State.ix+1)%DB.length);
 	else if (kev.code=='PageUp')   Start((State.ix+DB.length-1)%DB.length);	
+	else if (kev.code=='Home') { panx=0; pany=0; }
 	else prev = false;
 	if (prev) kev.preventDefault();
 }
@@ -295,7 +356,7 @@ function ChkStepSpeed() {
 			cfg_step = newstep; 
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
-		// ShowDbug('t:' + cfg_step +'ms, n:'+ cfg.n)		
+		// Dbug('t:' + cfg_step +'ms, n:'+ Math.round(cfg.n))		
 }	}
 
 // Animate one simulation Step called by timer
@@ -355,8 +416,12 @@ export function Pause(val) {
 	UpdtCfg();
 }
 function UpdtFooter() {
+	let s = cfg.scale;
+	if (s>20) s = Math.round(s);
+	else if (s<1) s = s.toFixed(4);
+	else s = s.toFixed(1);
 	document.getElementById('speed').innerHTML = Math.round(cfg.speed) + ':1';
-	document.getElementById('scale').innerHTML = (cfg.scale).toFixed(1) + ' ' +ENFR('AU|UA');
+	document.getElementById('scale').innerHTML = s + ' ' +ENFR('AU|UA');
 }
 function GetMassCenter(set) {
 	let cx=0, cy=0, cz=0, mt = 0;
@@ -365,40 +430,49 @@ function GetMassCenter(set) {
 		mt += e.m; })
 	return {'x': cx/mt, 'y': cy/mt, 'z':cz/mt}
 }
-// for speed optimisation, a lot is done inside this 'one' function
-// This is less clean 'visually' but... runs faster
-function Draw() {
-	// show position and speed information of object
-	function Details(l, obj) {
-		var rx,ry,rz, rvx, rvy, rvz;
-		let ty = 20 + l * 14;
-		let lablst = ['x', 'y', 'z', 'vx', 'vy', 'vz', '|v|'];
-		let vallst = [];
+
+// show position and speed information of object
+function Details() {
+	var rx,ry,rz, rvx, rvy, rvz;
+	var ty, rv, det, robj, vallst;
+	const lablst = ['x', 'y', 'z', 'vx', 'vy', 'vz', '|v|'];
+
+	let l = 0;
+	ctx.setTransform(1, 0, 0, 1, 0, 0);
+	ctx.font= '12px Arial';
+	State.items.forEach((obj)=> { if(obj.details) {
+		ty = 20 + l++ * 14;
+		vallst = [];
 		if (State.center < 0) {
 			rx = obj.x - ox; ry = obj.y - oy; rz = obj.z - oz;
 			rvx = obj.vx; rvy = obj.vy, rvz = obj.vz;
 		} else {
-			let robj = State.items[State.center];
+			robj = State.items[State.center];
 			rx = obj.x - robj.x; ry = obj.y - robj.y; rz = obj.z - robj.z;
 			rvx = obj.vx - robj.vx; rvy = obj.vy  - robj.vy, rvz = obj.vz - robj.vz;
 		}
-		let rv = Math.sqrt(rvx**2+rvy**2+rvz**2);
+		rv = Math.sqrt(rvx**2+rvy**2+rvz**2);
 		vallst.push(rx, ry, rz, rvx, rvy, rvz, rv);
-		ctx.font= '12px Arial';
+		ctx.fillStyle = obj.c;
 		ctx.fillText(obj.name, 10, ty);
-		let det = '=>';
+		det = '=>';
 		vallst.forEach((v,i)=>{
 			det += '  ' + lablst[i] + ':' + Number.parseFloat(v).toExponential(2);
 		})
 		ctx.fillText(det, 52, ty);
-	}	
+	}})
+}	
 
+// for speed optimisation, a lot is done inside this 'one' function
+// This is less clean 'visually' but... runs faster
+function Draw() {
 	if (!State) return;
 	var x,y,z,r; // object coordinate conversion (space to screen)
 	let line = 0;
 	const full = 2 * Math.PI;
 
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.translate(panx, pany);
 
 	let scale = ww/2/cfg.scale/AU;
 	let rsc = 0.06 + Math.sqrt(scale) * 150; // used to gerate fake radius 
@@ -430,11 +504,18 @@ function Draw() {
 		ctx.arc(x, y, r, 0, full, false);
 		ctx.fillStyle = e.c;
 		ctx.fill();
+		if (cfg.text) { 
+			ctx.font= Math.floor(fh) + 'px Arial';
+			ctx.fillText(e.name,x+r, y+r+fh);
+		}
 
 		// track screen 2d trace of object. (Tracking 3d does not show retrogradation)
 		let tr = e.trace;
 		let l = tr.length;
-		if (l == 0) tr.push({x,y});
+
+		// Set x and y relative to screen center for trace operation (helps zoom and pan)
+		if (l == 0) 
+			tr.push({x,y}); // traces are relative to screen center
 		else {
 			let lt = tr.slice(-1)[0]; // last item in trace
 			let d = Math.sqrt((lt.x-x)**2 + (lt.y-y)**2);
@@ -450,11 +531,6 @@ function Draw() {
 				if (Math.abs(a2-a1) > maxdeg || d>10) tr.push({x,y});
 		}	}
 		if (tr.length > MAX_TRACE) tr.shift();
-		if (cfg.text) { 
-			ctx.font= Math.floor(fh) + 'px Arial';
-			ctx.fillText(e.name,x+r, y+r+fh);
-		}
-		if (e.details) Details(line++, e)
 
 		// draw trace/orbit
 		if (cfg.trace && tr.length>1) {
@@ -466,36 +542,11 @@ function Draw() {
 			ctx.stroke();
 		}
 	})
-}
-// Find closest object and set as center
-function Click(clk) {
-	if (clk.button)
-	var x,y,z,d; // object coordinate conversion (space to screen)
-	let scale = ww/2/cfg.scale/AU;
-	let mind = 1E500, mix = -1;
-
-	State.items.forEach((e,i)=>{
-		x = e.x - ox; y = oz - e.z; z = e.y - oy;  // space relative to reference object		
-		x = x * scale + wcx;
-		if (cfg.view=='3d') y = y*COS_TETA + z*SIN_TETA;
-		y = y * scale + wcy;
-
-		d = Math.sqrt((x-clk.clientX)**2 + (y-clk.clientY)**2);
-		if (d < mind && d<100) {mind =d; mix = i }
-	})
-	// console.log(mix, mind, State.items[mix].name);
-
-	let prev = false;
-	if (mix>=0) {
-		prev = true;
-		if(clk.shiftKey && mix!=State.center) CenterOn(mix);
-		else if(clk.ctrlKey) State.items[mix].details = !State.items[mix].details;
-		else prev = false;		
-	}
-	if (prev) clk.preventDefault();
+	Details();
 }
 export function CenterOn(ix) {
 	ClearTrace();
+	panx = 0; pany = 0;
 	// last choice is org is "center of mass"
 	if (ix == State.items.length) ix = -1;
 	State.center = ix;

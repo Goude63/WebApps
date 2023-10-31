@@ -6,8 +6,8 @@
 	<link rel="icon" type="image/png" href="solar-system.png" sizes="32x32">
 	<link rel="stylesheet" href="SimulG.css" type="text/css">
 	<script type="module">
-		import {init, UpdtCfg, Help, SetAppLang, ZoomTraces, Start, Pause, CenterOn} from "./SimulG.js";
-		window.m = {init, UpdtCfg, Help, SetAppLang, ZoomTraces, Start, Pause, CenterOn}
+		import {init, UpdtCfg, Help, SetAppLang, ZoomTraces, Start, Pause, CenterOn, Dbug} from "./SimulG.js";
+		window.m = {init, UpdtCfg, Help, SetAppLang, ZoomTraces, Start, Pause, CenterOn, Dbug}
 	</script>
 </head>
 <body onload="m.init();"> 
@@ -22,12 +22,12 @@
 		</input></span>
 		<span><label id="labR" for="radius">&nbsp;R:</label>
 		<input type="checkbox" id = "radius" onchange="m.UpdtCfg('fake_r',this.checked);"></input></span>
-		<span><label id="labname" for="name">&nbsp;abc:</label>
+		<span><label id="labname" for="text">&nbsp;abc:</label>
 		<input type="checkbox" id = "text" onchange="m.UpdtCfg('text',this.checked);">
 		</input></span></td>
 	<td><label id="view">View</label> <span>
 		<input type="radio" id="2d" name="view" value="2d" onclick="m.UpdtCfg('view', this.value);">
-		<label id="labtop" for="top">2d</label>
+		<label id="labtop" for="2d">2d</label>
 		<input type="radio" id="3d" name="view" value="3d" onclick="m.UpdtCfg('view', this.value);">
 		<label id="lab3d" for="3d">3d</label></span></td>
 	<td style="text-align:right;">
@@ -41,13 +41,10 @@
 		E.g. Chrome, Firefox, Edge...
 	</canvas>
 	<table id="footer" width="100%"><tr>
-	<td><label id="labspeed" for="speed">Speed:</label><label id="speed"></label>
-		<button class="pmbtn" onclick="m.UpdtCfg('speed', 2);">+</button>
-		<button class="pmbtn" onclick="m.UpdtCfg('speed', 0.5);">-</button></td>
-	<td><label id="labscale" for="scale">Scale:</label><label id="scale"></label>
-		<button class="pmbtn" onclick="m.ZoomTraces(0.9);">+</button>
-		<button class="pmbtn" onclick="m.ZoomTraces(1/0.9);">-</button></td>
-	<td><label id="dbug"></label></td>
-	<td><label id="labtime" for="time">Duration:</label><label id="time"></label></td>
+	<td>&nbsp;<label id="labspeed">speed:</label><label id="speed"></label>
+	<td><label id="labscale">Scale:</label><label id="scale"></label>
+	<td style="text-align:right;">
+		<label id="labtime">Duration:</label><label id="time"></label>&nbsp;</td>
+	<tr><td><label onclick="m.Dbug();" id="dbug"></label></td>
 	</tr></table>	
 </body>

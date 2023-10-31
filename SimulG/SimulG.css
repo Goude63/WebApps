@@ -12,8 +12,8 @@ td {width:fit-content;vertical-align: center;}
 .blink { animation: blink 1s steps(1, end) infinite;}
 .pmbtn { width:5vw }
 
-.help {margin:5px;padding:2px;border: 2px solid;
-    border-collapse: collapse;width: calc(min(60ch,90%));}
+.hlp {margin:5px;padding:2px;border: 2px solid;;
+    border-collapse: collapse;width: calc(min(60ch,95%));}
 .hr {border-bottom:1pt solid black;}
 .right {text-align:right;margin:5px;padding-right:5px; padding-left:5px; }
 .left  {text-align:left;margin:5px;padding-right:5px;  }
