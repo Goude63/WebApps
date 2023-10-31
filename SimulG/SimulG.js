@@ -23,7 +23,7 @@ export function init() {
 	canvas.addEventListener('wheel', Wheel);
 	window.addEventListener('keydown', KeyDown);
 
-	// handle mouse events
+	// register mouse events
 	['mousedown', 'mousemove', 'mouseup'].forEach(evn => {
 		canvas.addEventListener(evn, Mouse); });
 
@@ -54,18 +54,75 @@ function Mouse(e) {
 }	} 	}
 
 // Touch events handling section
-const TM=Object.freeze({idle:Symbol('idle'),speed:Symbol('speed'),dbl:Symbol('dbl'),wait:Symbol('wait')});
-function TM2S(tm) {switch(tm){case TM.idle:return 'idle';case TM.speed:return 'speed';case TM.dbl:return 'dbl';case TM.wait:return 'wait';} return 'undefined'; }// Just for debug
-var ts = { n:0, mode:TM.idle,cx:-1,cy:-1,ls:0,lt:0 }; //  touch state
+const TM=Object.freeze({pan:Symbol('pan'), speed:Symbol('speed'),pinch:Symbol('pinch')});
+function TM2S(tm) {switch(tm){case TM.pan:return 'pan';case TM.speed:return 'speed';case TM.pinch:return 'pinch';} return 'undefined'; }// Just for debug
+var ts = { n:0, mode:TM.pan, x:0, y:0, t0:0, can_click:true, panv:false, s0:0, d0:0 }; 
 function Touch(e) {
-	ts.n = e.touches.length
+	var x,y,d;
+	let t = Date.now();
+	let dt = t - ts.t0; // time since original touch or pinch
+	let n = e.touches?e.touches.length:0;
+	if (e.type=='touchstart') { // one event for each point for pinch
+		ts.can_click &&= (n == 1); // if ever n !=1: disallow click  
+		if (ts.n != 2 && n == 2) { // switch to pinch 
+			ts.mode=TM.pinch; 
+			ts.x = Math.round((e.touches[0].clientX + e.touches[1].clientX)/2);
+			ts.y = Math.round((e.touches[0].clientY + e.touches[1].clientY)/2);
+			ts.s0 = cfg.scale;
+			ts.d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY); 
+		} else if (n == 1 && e.type=='touchstart') {
+			ts.mode = TM.tbd;
+			ts.x = e.touches[0].clientX; ts.y = e.touches[0].clientY;
+			ts.panv = ts.x > ww * 0.9 || ts.x < ww / 10;
+			if (ts.panv || ts.y > wh * 0.9) ts.mode=TM.speed; 
+			else ts.mode=TM.pan; 
+			ts.t0 = t;	} 
+	} else if (e.type=='touchmove') {
+		if (ts.mode == TM.pan) {
+			x = e.touches[0].clientX; y = e.touches[0].clientY;
+			d = Math.hypot(x-ts.x, y-ts.y);
+			if (d>10) { panx += x - ts.x; pany += y-ts.y; ts.x = x; ts.y = y }
+		} else if (ts.mode == TM.speed) {
+			var spd_chng;
+			x = e.touches[0].clientX; y = e.touches[0].clientY;
+			if (ts.panv) spd_chng = 10*(ts.y - y)/wh;
+			else spd_chng = 10*(x - ts.x)/ww;
+			if (spd_chng > 0) spd_chng++;
+			else spd_chng = 1/(1-spd_chng);
+			cfg.speed *= spd_chng; ts.x = x; ts.y = y;
+			UpdtFooter();
+		} else if (ts.mode == TM.pinch) {
+			// you can pan while pinching
+			x = Math.round((e.touches[0].clientX + e.touches[1].clientX)/2);
+			y = Math.round((e.touches[0].clientY + e.touches[1].clientY)/2);
+			d = Math.hypot(x-ts.x, y-ts.y);
+			if (d>10) { panx += x - ts.x; pany += y-ts.y; ts.x = x; ts.y = y }
 
-	Dbug(e.type +  '  md=' + TM2S(ts.mode) + '  n=' + e.touches.length );
+			// Check for zoom
+			d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
+				e.touches[0].clientY - e.touches[1].clientY);
+			let dd = ts.d0/d;
+			if (dd>1.05 || dd < 1/1.05 ) {				
+				ZoomTraces(dd*ts.s0, true);
+				let nx = (x - wcx) * dd + wcx;
+				let ny = (y - wcy) * dd + wcy;
+				panx -= ts.x-x; pany -= ts.y-y;				
+			}
+		}
+	} else if (e.type=='touchend' && n==0) {
+		if (ts.can_click && dt<500)	Click(ts.x, ts.y, e, dt>250);
+		ts.can_click = true;
+		ts.mode = TM.pan;
+	} 
+	ts.n = n;
+
+	// Dbug(`${e.type} md= ${TM2S(ts.mode)} n=${e.touches.length}`);	
 	e.preventDefault();
 }
 
 // Find closest object and set as center or display details
-function Click(clx, cly, evt) {
+function Click(clx, cly, evt, shift) {
 	var x,y,z,d; // object coordinate conversion (space to screen)
 	let scale = ww/2/cfg.scale/AU;
 	let mind = 1E500, mix = -1;
@@ -82,7 +139,7 @@ function Click(clx, cly, evt) {
 	// console.log(mix, mind, State.items[mix].name);
 
 	if (mix>=0) {
-		if(evt.shiftKey && mix!=State.center) CenterOn(mix);
+		if((evt.shiftKey || shift) && mix!=State.center) CenterOn(mix);
 		else State.items[mix].details = !State.items[mix].details;
 		evt.preventDefault();
 }	}
@@ -107,7 +164,14 @@ function ClearTrace() {	State.items.forEach(e=>{e.trace=[]}); }
 function Wheel(e) {
 	let up =  e.wheelDeltaY>0;
 	if (e.ctrlKey) cfg.speed *= up?2:0.5;
-	else ZoomTraces((!up)?1/0.9:0.9);  
+	else {
+		let zoom = (!up)?1/0.9:0.9
+		ZoomTraces(zoom);
+		// make sure objects under mouse pointer stay there
+		let nx = (e.x - wcx) * zoom + wcx;
+		let ny = (e.y - wcy) * zoom + wcy;
+		panx -= e.x-nx; pany -= e.y-ny;
+	}
 	e.preventDefault();
 	if (cfg.pause) Draw()
 	UpdtFooter();;
@@ -148,7 +212,8 @@ export function Help() {
 	window.open('Help_' + cfg.lang + '.htm', 'help').focus();
 }
 // Rescale 2d traces to new zoom
-export function ZoomTraces(nz) {
+export function ZoomTraces(nz, abs) {
+	if (abs) nz = nz/cfg.scale;
 	State.items.forEach(e=> { e.trace.forEach(pt=>{
 			pt.x = (pt.x-wcx) / nz + wcx;
 			pt.y = (pt.y-wcy) / nz + wcy;
@@ -434,14 +499,17 @@ function GetMassCenter(set) {
 // show position and speed information of object
 function Details() {
 	var rx,ry,rz, rvx, rvy, rvz;
-	var ty, rv, det, robj, vallst;
+	var ty, rv, d1, d2, robj, vallst;
 	const lablst = ['x', 'y', 'z', 'vx', 'vy', 'vz', '|v|'];
 
 	let l = 0;
+	let fh = Math.round(Math.max(ctx.canvas.height,ctx.canvas.width) / 60);
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
-	ctx.font= '12px Arial';
+	ctx.font= fh + 'px Arial';
+	let dx0 = ctx.measureText('WWWWWWW').width; 
+	let dy0 = 20; if (touch) dy0 += 20 
 	State.items.forEach((obj)=> { if(obj.details) {
-		ty = 20 + l++ * 14;
+		ty = Math.round(dy0 + 2.3 * l++ * fh);
 		vallst = [];
 		if (State.center < 0) {
 			rx = obj.x - ox; ry = obj.y - oy; rz = obj.z - oz;
@@ -455,11 +523,14 @@ function Details() {
 		vallst.push(rx, ry, rz, rvx, rvy, rvz, rv);
 		ctx.fillStyle = obj.c;
 		ctx.fillText(obj.name, 10, ty);
-		det = '=>';
+		ctx.fillText('=>', ctx.measureText('WWWW').width + 10, ty);
+		d2 = d1 = '';
 		vallst.forEach((v,i)=>{
-			det += '  ' + lablst[i] + ':' + Number.parseFloat(v).toExponential(2);
+			let item = '  ' + lablst[i] + ':' + Number.parseFloat(v).toExponential(3);
+			if (i<=2) d1 += item; else d2 += item;
 		})
-		ctx.fillText(det, 52, ty);
+		ctx.fillText(d1, dx0, ty);
+		ctx.fillText(d2, dx0, ty+fh);
 	}})
 }	
 
