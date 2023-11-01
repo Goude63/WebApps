@@ -4,18 +4,23 @@
 <html lang="en">
 <head>	
 	<link rel="icon" type="image/png" href="solar-system.png" sizes="32x32">
-	<link rel="stylesheet" href="SimulG.css" type="text/css">
+	<link rel="stylesheet" href="Help.css" type="text/css">
+	<script>function sh_spd(){
+		d=document.getElementById('spd'); d.hidden = !d.hidden; return false; }</script>
 </head>
 <body>
 	<table class = 'hlp'>
 		<tr><th class="hr">Function:</th><th class="hr">Action</th></tr>
 		<tr class="hr">
 			<td class="right">Zoom:</td>
-			<td class="left">Wheel Mouse or Pinch</td></tr>
+			<td class="left">Mouse Wheel or Pinch</td></tr>
 		<tr class="hr">
 			<td class="right">Simulation Speed:</td>
-			<td class="left">[Ctrl] Wheel Mouse<br>
-				Vertical slide &#8693; on right side</td></tr>
+			<td class="left">[Ctrl] Mouse Wheel<br>
+				<a href="#" onclick="sh_spd();">
+					Slide &#8693; on left/right or &#8644; at the bottom</a></td></tr>
+				<tr class="hr"><td colspan="2"><div id="spd" hidden>
+					<img src="Speed_en.png" width="95%" onclick="sh_spd();"></div></td></tr>				
 		<tr class="hr">
 			<td class="right">Select reference:</td>
 			<td class="left">[Shift] Click or Long tap object</td></tr>

@@ -1,5 +1,5 @@
 
-* {	margin: 0px; padding: 0px; font-size: calc(max(14px,1.5vh)); }
+* {	margin: 0px; padding: 0px; font-size: calc(max(16px,2vh)); }
 body { background-color: black; overflow:hidden; color:black}
 input {	background-color: white; border: none; width:min-content;}
 span { display:inline-block; }
@@ -11,10 +11,3 @@ td {width:fit-content;vertical-align: center;}
 .pause { font-size:calc(max(18px,1.7vh)); }
 .blink { animation: blink 1s steps(1, end) infinite;}
 .pmbtn { width:5vw }
-
-.hlp {margin:5px;padding:2px;border: 2px solid;;
-    border-collapse: collapse;width: calc(min(60ch,95%));}
-.hr {border-bottom:1pt solid black;}
-.right {text-align:right;margin:5px;padding-right:5px; padding-left:5px; }
-.left  {text-align:left;margin:5px;padding-right:5px;  }
-

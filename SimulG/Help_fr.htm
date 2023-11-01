@@ -4,7 +4,9 @@
 <html lang="fr">
 <head>	
 	<link rel="icon" type="image/png" href="solar-system.png" sizes="32x32">
-	<link rel="stylesheet" href="SimulG.css" type="text/css">
+	<link rel="stylesheet" href="Help.css" type="text/css">
+	<script>function sh_spd(){
+		d=document.getElementById('spd'); d.hidden = !d.hidden; return false; }</script>
 </head>
 <body>
 	<table class="hlp">
@@ -14,7 +16,11 @@
 			<td class="left">Roulette de souris / 2 doigts &#8660;</td></tr>
 		<tr class="hr">
 			<td class="right">Vitesse de simulation:</td>
-			<td class="left">[Ctrl] Roulette de souris<br> Glisser verticalement &#8693; à doite</td></tr>
+			<td class="left">[Ctrl] Roulette de souris<br>
+				<a href="#" onclick="sh_spd();">
+				Glisser &#8693;	à doite/gauche ou &#8644; en bas</a></td></tr>
+			<tr class="hr"><td colspan="2"><div id="spd" hidden>
+				<img src="Speed_fr.png" width="95%" onclick="sh_spd();"></div></td></tr>
 		<tr class="hr">
 			<td class="right">Choisir la référence:</td>
 			<td class="left">[Shift] Clic / long tap sur l'objet</td></tr>
@@ -72,7 +78,7 @@
         le temps d'attente, vous pouvez accelélérer la vitesse de simulation ([Ctrl] 
         roulette vers le haut) quand la planète n'est pas trop près d'une étoile.
         Ralentir la vitesse de simulation lorsque la planète s'approche à nouveau d'une étoile,
-        sinon des erreurs de calcul vont entraîner des des trajectoires alléatoires.<br>
+        sinon des erreurs de calcul vont entraîner des trajectoires alléatoires.<br>
 		Pour le système "Apollo", après un temps de simulation d'environ un mois, 
         le module de service/commande (csm) re-passe très près de la lune. Ici aussi, vous pouvez
         accélérer la vitesse de simulation lorsque le csm n'est pas trop près de la Lune ou la 
