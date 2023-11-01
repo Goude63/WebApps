@@ -17,19 +17,17 @@
 	<td><label id="laborg" for="org">Center on:</label>
 		<select id = "org" onchange="m.CenterOn(this.selectedIndex);"></select></td>
 	<td><label id="pause" onclick="m.Pause();">&#x23F8;</label></td>
-	<td><span><label id="labtrace" for="trace">&nbsp;~:</label>
-		<input type="checkbox" id = "trace" onchange="m.UpdtCfg('trace', this.checked);">
-		</input></span>
-		<span><label id="labR" for="radius">&nbsp;R:</label>
-		<input type="checkbox" id = "radius" onchange="m.UpdtCfg('fake_r',this.checked);"></input></span>
-		<span><label id="labname" for="text">&nbsp;abc:</label>
-		<input type="checkbox" id = "text" onchange="m.UpdtCfg('text',this.checked);">
-		</input></span></td>
-	<td><label id="view">View</label> <span>
+	<td><nobr><label id="labtrace" for="trace">&nbsp;~:</label>
+		<input type="checkbox" id = "trace" onchange="m.UpdtCfg('trace', this.checked);"></input></nobr>
+		<nobr><label id="labR" for="radius">&nbsp;R:</label>
+		<input type="checkbox" id = "radius" onchange="m.UpdtCfg('fake_r',this.checked);"></input></nobr>
+		<nobr><label id="labname" for="text">&nbsp;abc:</label>
+		<input type="checkbox" id = "text" onchange="m.UpdtCfg('text',this.checked);"></input></nobr></td>
+	<td><label id="view">View</label><nobr>
 		<input type="radio" id="2d" name="view" value="2d" onclick="m.UpdtCfg('view', this.value);">
-		<label id="labtop" for="2d">2d</label>
-		<input type="radio" id="3d" name="view" value="3d" onclick="m.UpdtCfg('view', this.value);">
-		<label id="lab3d" for="3d">3d</label></span></td>
+		<label id="labtop" for="2d">2d</label></nobr>
+		<nobr><input type="radio" id="3d" name="view" value="3d" onclick="m.UpdtCfg('view', this.value);">
+		<label id="lab3d" for="3d">3d</label></nobr></td>
 	<td style="text-align:right;">
 		<select id = "lang" onchange="m.SetAppLang(this.value);">
 		<option title="English">EN</option><option title="Français">FR</option></select>&nbsp; 

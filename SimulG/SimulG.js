@@ -8,6 +8,7 @@ var cfg, cfg_step, dbug = true;
 var pz, touch = 'ontouchstart' in window;
 var canvas, ctx, DB, ox, oy, oz, t0;
 var panx = 0, pany = 0;
+var Timer = null;
 
 function SetLS(name,v) { localStorage.setItem('SG_' + name, v) }
 
@@ -42,50 +43,58 @@ export function init() {
 // Mouse event handling section
 const MS=Object.freeze({up:Symbol('up'), down:Symbol('down')});
 var ms = { mode:MS.up,lx:-1,ly:-1,ls:0,t0:0 }; // mouse state
+var TP = false;
 function Mouse(e) {
 	let t = Date.now();
 	let dt = t - ms.t0;
 	switch (e.type) {
-	case 'mousedown' : ms.lx = e.x; ms.ly = e.y; ms.mode = MS.down; ms.t0 = t; break;
-	case 'mouseup'   : ms.mode = MS.up; if (dt<200) Click(ms.lx, ms.ly, e); break;
+	case 'mousedown' : TP =true; ms.lx = e.x; ms.ly = e.y; ms.mode = MS.down; ms.t0 = t; break;
+	case 'mouseup'   : ms.mode = MS.up; if (dt<200) Click(ms.lx, ms.ly, e); TP=false;break;
 	case 'mousemove' : if (dt>100 && ms.mode == MS.down) {
 		let d = Math.hypot(e.x-ms.lx, e.y-ms.ly);
-		if (d>5) { panx += e.x-ms.lx; pany += e.y-ms.ly; ms.lx = e.x; ms.ly = e.y; }
+		if (d>5) { 
+			panx += e.x-ms.lx; pany += e.y-ms.ly; 
+			ms.lx = e.x; ms.ly = e.y; 
+			Draw(); }
 }	} 	}
 
 // Touch events handling section
 const TM=Object.freeze({pan:Symbol('pan'), speed:Symbol('speed'),pinch:Symbol('pinch')});
 function TM2S(tm) {switch(tm){case TM.pan:return 'pan';case TM.speed:return 'speed';case TM.pinch:return 'pinch';} return 'undefined'; }// Just for debug
-var ts = { n:0, mode:TM.pan, x:0, y:0, t0:0, can_click:true, panv:false, s0:0, d0:0 }; 
+var ts = { n:0, mode:TM.pan, can_click:true, panv:false };
 function Touch(e) {
 	var x,y,d;
 	let t = Date.now();
+	let tchs = e.touches;
 	let dt = t - ts.t0; // time since original touch or pinch
-	let n = e.touches?e.touches.length:0;
+	let n = tchs?tchs.length:0;
 	if (e.type=='touchstart') { // one event for each point for pinch
+		TP = true;
+		let br = e.target.getBoundingClientRect();
+		ts.ofx = br.x; ts.ofy = br.y; // convert ClientXY to offsetXY
 		ts.can_click &&= (n == 1); // if ever n !=1: disallow click  
 		if (ts.n != 2 && n == 2) { // switch to pinch 
 			ts.mode=TM.pinch; 
-			ts.x = Math.round((e.touches[0].clientX + e.touches[1].clientX)/2);
-			ts.y = Math.round((e.touches[0].clientY + e.touches[1].clientY)/2);
+			ts.x = (tchs[0].clientX + tchs[1].clientX)/2-ts.ofx;
+			ts.y = (tchs[0].clientY + tchs[1].clientY)/2-ts.ofy;	
+			ts.ldd = 1;		
 			ts.s0 = cfg.scale;
-			ts.d0 = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
-				e.touches[0].clientY - e.touches[1].clientY); 
-		} else if (n == 1 && e.type=='touchstart') {
-			ts.mode = TM.tbd;
-			ts.x = e.touches[0].clientX; ts.y = e.touches[0].clientY;
+			ts.d0 = Math.hypot(tchs[0].clientX - tchs[1].clientX,
+				tchs[0].clientY - tchs[1].clientY); 
+		} else if (n == 1) {
+			ts.mode = TM.pan;
+			ts.x = tchs[0].clientX; ts.y = tchs[0].clientY;
 			ts.panv = ts.x > ww * 0.9 || ts.x < ww / 10;
-			if (ts.panv || ts.y > wh * 0.9) ts.mode=TM.speed; 
-			else ts.mode=TM.pan; 
-			ts.t0 = t;	} 
+			if (ts.panv || ts.y > wh * 0.9) { ts.mode=TM.speed; TP=false }
+			ts.t0 = t; }
 	} else if (e.type=='touchmove') {
 		if (ts.mode == TM.pan) {
-			x = e.touches[0].clientX; y = e.touches[0].clientY;
+			x = tchs[0].clientX; y = tchs[0].clientY;
 			d = Math.hypot(x-ts.x, y-ts.y);
-			if (d>10) { panx += x - ts.x; pany += y-ts.y; ts.x = x; ts.y = y }
+			if (d>10) { panx += x - ts.x; pany += y-ts.y; ts.x = x; ts.y = y; Draw(); }
 		} else if (ts.mode == TM.speed) {
 			var spd_chng;
-			x = e.touches[0].clientX; y = e.touches[0].clientY;
+			x = tchs[0].clientX; y = tchs[0].clientY;
 			if (ts.panv) spd_chng = 10*(ts.y - y)/wh;
 			else spd_chng = 10*(x - ts.x)/ww;
 			if (spd_chng > 0) spd_chng++;
@@ -94,30 +103,30 @@ function Touch(e) {
 			UpdtFooter();
 		} else if (ts.mode == TM.pinch) {
 			// you can pan while pinching
-			x = Math.round((e.touches[0].clientX + e.touches[1].clientX)/2);
-			y = Math.round((e.touches[0].clientY + e.touches[1].clientY)/2);
+			x = (tchs[0].clientX + tchs[1].clientX)/2-ts.ofx;
+			y = (tchs[0].clientY + tchs[1].clientY)/2-ts.ofy;
 			d = Math.hypot(x-ts.x, y-ts.y);
-			if (d>10) { panx += x - ts.x; pany += y-ts.y; ts.x = x; ts.y = y }
+			if (d>10) { panx += x - ts.x; pany += y-ts.y; ts.x = x; ts.y = y; Draw() }
 
-			// Check for zoom
-			d = Math.hypot(e.touches[0].clientX - e.touches[1].clientX,
-				e.touches[0].clientY - e.touches[1].clientY);
-			let dd = ts.d0/d;
-			if (dd>1.05 || dd < 1/1.05 ) {				
+			// Check for zoom (here d is distance between the 2 touch)
+			d = Math.hypot(tchs[0].clientX - tchs[1].clientX, tchs[0].clientY - tchs[1].clientY);
+			let dd = ts.d0/d; // relative zoom
+			if (Math.abs(dd-ts.ldd) >0.05) {				
 				ZoomTraces(dd*ts.s0, true);
-				let nx = (x - wcx) * dd + wcx;
-				let ny = (y - wcy) * dd + wcy;
-				panx -= ts.x-x; pany -= ts.y-y;				
+				let nx = (x - wcx) / dd + wcx;
+				let ny = (y - wcy) / dd + wcy;
+				panx += ts.x-x; pany += ts.y-y;
+				ts.ldd = dd;
+				Draw();			
 			}
 		}
 	} else if (e.type=='touchend' && n==0) {
-		if (ts.can_click && dt<500)	Click(ts.x, ts.y, e, dt>250);
+		if (ts.can_click && dt<500)	Click(ts.x-ts.ofx, ts.y-ts.ofy, e, dt>250);
 		ts.can_click = true;
 		ts.mode = TM.pan;
+		TP = false;
 	} 
 	ts.n = n;
-
-	// Dbug(`${e.type} md= ${TM2S(ts.mode)} n=${e.touches.length}`);	
 	e.preventDefault();
 }
 
@@ -141,7 +150,7 @@ function Click(clx, cly, evt, shift) {
 	if (mix>=0) {
 		if((evt.shiftKey || shift) && mix!=State.center) CenterOn(mix);
 		else State.items[mix].details = !State.items[mix].details;
-		evt.preventDefault();
+		evt.preventDefault(); Draw();
 }	}
 
 export function Dbug(txt) { 
@@ -168,12 +177,12 @@ function Wheel(e) {
 		let zoom = (!up)?1/0.9:0.9
 		ZoomTraces(zoom);
 		// make sure objects under mouse pointer stay there
-		let nx = (e.x - wcx) * zoom + wcx;
-		let ny = (e.y - wcy) * zoom + wcy;
-		panx -= e.x-nx; pany -= e.y-ny;
+		let nx = (e.offsetX - wcx) / zoom + wcx;
+		let ny = (e.offsetY - wcy) / zoom + wcy;
+		panx += e.offsetX-nx; pany += e.offsetY-ny;
 	}
 	e.preventDefault();
-	if (cfg.pause) Draw()
+	Draw()
 	UpdtFooter();;
 }
 var ResTo = null;
@@ -199,8 +208,8 @@ function DoResize(mch) { // mh : measure height
 	wh = CVH;
 	ctx.canvas.width = ww;
 	ctx.canvas.height = CVH; 
-	wcx = Math.floor(ww/2);  // window center
-	wcy = Math.floor(wh/2);
+	wcx = Math.round(ww/2);  // window center
+	wcy = Math.round(wh/2);
 	if (cfg.pause) Draw();
 }
 function ChkWSize() {
@@ -243,7 +252,7 @@ function KeyDown(kev) {
 	else if (kev.code=='PageUp')   Start((State.ix+DB.length-1)%DB.length);	
 	else if (kev.code=='Home') { panx=0; pany=0; }
 	else prev = false;
-	if (prev) kev.preventDefault();
+	if (prev) { kev.preventDefault(); Draw()  }
 }
 export function SetAppLang(newLang) {
 	let sys_list = '';
@@ -265,6 +274,7 @@ export function SetAppLang(newLang) {
 	document.getElementById('radius').title = 
 		ENFR("Show exagerated radius|Montrer un rayon exagéré ");
 	document.getElementById('labtime').innerHTML = ENFR('Duration:|Durée:');
+	document.getElementById('labscale').innerHTML = ENFR('Scale:|Échelle:');	
 	document.getElementById('labspeed').innerHTML = ENFR('Speed:|Vitesse:');
 	if (State) Start(State.ix);
 }
@@ -368,7 +378,6 @@ function Influence(dt) {
 			ApplyForce(list[j],dtf,-1); // reaction :)
 		}
 }
-var Timer = null;
 var InStep = false;
 var State = null;
 var ww, wh, wcx, wcy; // current canvas size and center
@@ -426,7 +435,7 @@ function ChkStepSpeed() {
 
 // Animate one simulation Step called by timer
 function Step() {	
-	if (cfg.pause || InStep) return;
+	if (cfg.pause || InStep || document.hidden || TP) return;
 	InStep = true;
 	let dt = cfg.speed * cfg_step / 1000;	
 	TotTime += dt; dt /= cfg.n;
@@ -476,7 +485,7 @@ export function UpdtCfg(name,val) {
 	UpdtFooter()
 }
 export function Pause(val) {
-	if (val == undefined) val = !cfg.pause;
+	if (val === undefined) val = !cfg.pause;
 	cfg.pause=val;
 	UpdtCfg();
 }
@@ -485,7 +494,9 @@ function UpdtFooter() {
 	if (s>20) s = Math.round(s);
 	else if (s<1) s = s.toFixed(4);
 	else s = s.toFixed(1);
-	document.getElementById('speed').innerHTML = Math.round(cfg.speed) + ':1';
+	let v = Math.round(cfg.speed);
+	if (v>=1e5) { v = v.toExponential(2).toString().replace('e+','E'); }
+	document.getElementById('speed').innerHTML = v + ' x';
 	document.getElementById('scale').innerHTML = s + ' ' +ENFR('AU|UA');
 }
 function GetMassCenter(set) {
@@ -623,6 +634,7 @@ export function CenterOn(ix) {
 	State.center = ix;
 	if (ix<0) ix = State.items.length;
 	document.getElementById('org').selectedIndex = ix;
+	Draw();
 }
 function PopulateOrgSel() {
 	let html = '';
