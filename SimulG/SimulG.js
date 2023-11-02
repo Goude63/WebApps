@@ -4,11 +4,12 @@ const MAX_TRACE = 600;
 const TILT_RAD = -Math.PI*70/180;
 const SIN_TETA = Math.sin(TILT_RAD); // 30 degr tilt in radian for 3d view
 const COS_TETA = Math.cos(TILT_RAD); 
-var cfg, cfg_step, dbug = true;
+var cfg, cfg_step
 var pz, touch = 'ontouchstart' in window;
 var canvas, ctx, DB, ox, oy, oz, t0;
 var panx = 0, pany = 0;
 var Timer = null;
+var dbug = false;
 
 function SetLS(name,v) { localStorage.setItem('SG_' + name, v) }
 
@@ -48,13 +49,13 @@ function Mouse(e) {
 	let t = Date.now();
 	let dt = t - ms.t0;
 	switch (e.type) {
-	case 'mousedown' : TP =true; ms.lx = e.x; ms.ly = e.y; ms.mode = MS.down; ms.t0 = t; break;
+	case 'mousedown' : TP =true; ms.lx = e.offsetX; ms.ly = e.offsetY; ms.mode = MS.down; ms.t0 = t; break;
 	case 'mouseup'   : ms.mode = MS.up; if (dt<200) Click(ms.lx, ms.ly, e); TP=false;break;
 	case 'mousemove' : if (dt>100 && ms.mode == MS.down) {
-		let d = Math.hypot(e.x-ms.lx, e.y-ms.ly);
+		let d = Math.hypot(e.offsetX-ms.lx, e.offsetY-ms.ly);
 		if (d>5) { 
-			panx += e.x-ms.lx; pany += e.y-ms.ly; 
-			ms.lx = e.x; ms.ly = e.y; 
+			panx += e.offsetX-ms.lx; pany += e.offsetY-ms.ly; 
+			ms.lx = e.offsetX; ms.ly = e.offsetY; 
 			Draw(); }
 }	} 	}
 
@@ -279,7 +280,7 @@ export function SetAppLang(newLang) {
 	if (State) Start(State.ix);
 }
 function LoadDB() {
-	// Distances in AU, masses in kg, speeds in km/s, radius in km
+	// Distances and scale in AU, masses in kg, speeds in km/s, radius in km
 	DB = [
 		{ name:"Solar System|Système Solaire", speed:2E6, center:-1, scale: 50,
 		  hint:"All planets|Toutes les planètes",
@@ -305,7 +306,7 @@ function LoadDB() {
 			{name:"Pluto|Pluton", c:'#F5DCCE', r:1188, m:1.3E22,
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 
-		{ name:"Terrestrial Planets|Planètes terrestres", speed:2E6, center:-1, scale: 3,
+		{ name:"Terrestrial Planets|Planètes terrestres", speed:1E6, center:-1, scale: 3,
 		items: [
 			{name:"Sun|Soleil", c:'#FFFFA0', r:695508, m:1.99E30,
 				x:0, y:0, z:0, vx:0, vy:0, vz:0},
@@ -314,7 +315,9 @@ function LoadDB() {
 			{name:"Venus", c:'#E0A0A0', r:6052, m:4.867E24,
 				x:-0.7226, y:-0.0429, z:0, vx:0, vy:0, vz:-35},
 			{name:"Earth|Terre", c:'#A0A0FF', r:6371, m:5.972E24,
-				x:0, y:0, z:1, vx:-29.8, vy:0, vz:0},
+				x:0, y:0, z:1, vx:-29.786, vy:0, vz:0},
+			{name:"Moon|Lune", c:'#A0A0FF', r:1737.4, m:7.3477E22,
+				x:0, y:0, z:1.00256955529, vx:-30.78416208, vy:-0.08987384, vz:0}, 
 			{name:"Mars", c:'#F59C5A', r:3390, m:6.417E23,
 				x:1.5226, y:0.0505, z:0, vx:0, vy:0, vz:24.1}]},
 
@@ -430,7 +433,8 @@ function ChkStepSpeed() {
 			cfg_step = newstep; 
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
-		// Dbug('t:' + cfg_step +'ms, n:'+ Math.round(cfg.n))		
+		Dbug(`${1000/cfg_step} ${ENFR('frames|images')}/s, 
+			${Math.round(cfg.n)} ${ENFR('calculations/frame|calculs')}/image`);		
 }	}
 
 // Animate one simulation Step called by timer
@@ -509,9 +513,9 @@ function GetMassCenter(set) {
 
 // show position and speed information of object
 function Details() {
-	var rx,ry,rz, rvx, rvy, rvz;
-	var ty, rv, d1, d2, robj, vallst;
-	const lablst = ['x', 'y', 'z', 'vx', 'vy', 'vz', '|v|'];
+	var rx,ry,rz,rvx,rvy,rvz;
+	var ty, d1, d2, robj, vallst;
+	const lablst = ['x', 'y', 'z', '|d|', 'vx', 'vy', 'vz', '|v|'];
 
 	let l = 0;
 	let fh = Math.round(Math.max(ctx.canvas.height,ctx.canvas.width) / 60);
@@ -530,15 +534,14 @@ function Details() {
 			rx = obj.x - robj.x; ry = obj.y - robj.y; rz = obj.z - robj.z;
 			rvx = obj.vx - robj.vx; rvy = obj.vy  - robj.vy, rvz = obj.vz - robj.vz;
 		}
-		rv = Math.sqrt(rvx**2+rvy**2+rvz**2);
-		vallst.push(rx, ry, rz, rvx, rvy, rvz, rv);
+		vallst.push(rx, ry, rz, Math.hypot(rx,ry,rz), rvx, rvy, rvz, Math.hypot(rvx,rvy,rvz));
 		ctx.fillStyle = obj.c;
 		ctx.fillText(obj.name, 10, ty);
 		ctx.fillText('=>', ctx.measureText('WWWW').width + 10, ty);
 		d2 = d1 = '';
 		vallst.forEach((v,i)=>{
 			let item = '  ' + lablst[i] + ':' + Number.parseFloat(v).toExponential(3);
-			if (i<=2) d1 += item; else d2 += item;
+			if (i<=3) d1 += item; else d2 += item;
 		})
 		ctx.fillText(d1, dx0, ty);
 		ctx.fillText(d2, dx0, ty+fh);
