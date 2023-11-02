@@ -336,7 +336,7 @@ function LoadDB() {
 			{name:"Pluto|Pluton", c:'#F5DCCE', r:1188, m:1.3E22,
 				x:47.0929, y:14.5724, z:0, vx:0, vy:0, vz:3.63}]},
 		
-		{ name:"Apollo", speed:6000, center:0, scale:0.002, fake_r:false,
+		{ name:"Apollo", speed:6000, center:0, scale:0.002,
 		  hint:"Free return trajectory|Trajectoire de retour vers la terre",
 		items: [
 			{name:"Earth|Terre", c:'#A0A0FF', r:6378, m:5.98E24,
@@ -517,7 +517,7 @@ function Details() {
 	var ty, d1, d2, robj, vallst;
 	const lablst = ['x', 'y', 'z', '|d|', 'vx', 'vy', 'vz', '|v|'];
 
-	let l = 0;
+	let l = 0;	 
 	let fh = Math.round(Math.max(ctx.canvas.height,ctx.canvas.width) / 60);
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.font= fh + 'px Arial';
@@ -580,7 +580,7 @@ function Draw() {
 		y = y * scale + wcy;
 
 		// compute exagerated radius is requested
-		if (cfg.fake_r) r = Math.round(.05*(e.m ** rsc));
+		if (cfg.fake_r && cfg.scale>0.3) r = Math.round(.05*(e.m ** rsc));
 		else r = e.r * 1000 * scale; // r is given in km. Convert to AU
 		if (r<1) r = 1;
 
