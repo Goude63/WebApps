@@ -355,8 +355,18 @@ function LoadDB() {
 			{name:"star 2|étoile 2", c:'#F0D090', r:450340, m:1.4E30,
 				x:0.2525, y:0, z:0, vx:0, vy:0, vz:33},
 			{name:"planet|planète", c:'#A0A0A0', r:450340, m:1E24,
-				x:0.080, y:0, z:0, vx:25, vy:-50, vz:0}]
-		} ];
+				x:0.080, y:0, z:0, vx:25, vy:-50, vz:0}]},
+		{ name:"8 Stars/Picard|Picard/8 étoiles", speed:2E7, center:-1, scale:20,
+		items: [
+			{name: 'A', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:13.0, vx:-21.956568149319196, vy:0, vz:0},
+			{name: 'B', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:12.0, vx:-0.8411244870300862, vy:0, vz:0},
+			{name: 'C', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:8.0, vx:-8.601988993759026, vy:0, vz:0},
+			{name: 'D', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:7.0, vx:12.513454668530084, vy:0, vz:0},
+			{name: 'E', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:-7.0, vx:-12.513454668530084, vy:0, vz:0},
+			{name: 'F', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:-8.0, vx:8.601988993759026, vy:0, vz:0},
+			{name: 'G', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:-12.0, vx:0.8411244870300862, vy:0, vz:0},
+			{name: 'H', c:'#FFFFA0', r:2E7, m:5e+29, x:0, y:0, z:-13.0, vx:21.956568149319196, vy:0, vz:0},
+		] } ];
 }
 // Compute new vx,vy and vz after dt (in seconds)
 function Influence(dt) {
@@ -434,7 +444,7 @@ function ChkStepSpeed() {
 			clearInterval(Timer);
 			Timer = setInterval(Step, cfg_step); } 
 		Dbug(`${1000/cfg_step} ${ENFR('frames|images')}/s, 
-			${Math.round(cfg.n)} ${ENFR('calculations/frame|calculs')}/image`);		
+			${Math.round(cfg.n)} ${ENFR('calculations/frame|calculs/image')}`);		
 }	}
 
 // Animate one simulation Step called by timer
@@ -442,7 +452,7 @@ function Step() {
 	if (cfg.pause || InStep || document.hidden || TP) return;
 	InStep = true;
 	let dt = cfg.speed * cfg_step / 1000;	
-	TotTime += dt; dt /= cfg.n;
+	TotTime += dt; dt /= cfg.n;	
 	Draw();
 	// Do Nx Influence and Move without redraw to minimize discretization errors
 	for (let n=0; n<cfg.n; n++) { 
@@ -517,7 +527,8 @@ function Details() {
 	var ty, d1, d2, robj, vallst;
 	const lablst = ['x', 'y', 'z', '|d|', 'vx', 'vy', 'vz', '|v|'];
 
-	let l = 0;	 
+	let l = 0;
+	 
 	let fh = Math.round(Math.max(ctx.canvas.height,ctx.canvas.width) / 60);
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.font= fh + 'px Arial';
