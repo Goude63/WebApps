@@ -271,7 +271,7 @@ export function SetAppLang(newLang) {
 	document.getElementById('labtop').innerHTML = ENFR('2d');
 	document.getElementById('lab3d').innerHTML = ENFR('3d');
 	document.getElementById('org').title = 
-		ENFR("You can also [ctrl] click on the object|Vous pouvez aussi faire [ctrl] clic sur l'objet");
+		ENFR("You can also [Shift] click on the object|Vous pouvez aussi faire [Shift] clic sur l'objet");
 	document.getElementById('radius').title = 
 		ENFR("Show exagerated radius|Montrer un rayon exagéré ");
 	document.getElementById('labtime').innerHTML = ENFR('Duration:|Durée:');
