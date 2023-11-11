@@ -277,6 +277,7 @@ export function SetAppLang(newLang) {
 	document.getElementById('labtime').innerHTML = ENFR('Duration:|Durée:');
 	document.getElementById('labscale').innerHTML = ENFR('Scale:|Échelle:');	
 	document.getElementById('labspeed').innerHTML = ENFR('Speed:|Vitesse:');
+	document.title = ENFR("Gravitational Simulator|Simulateur Gravitationnel");
 	if (State) Start(State.ix);
 }
 function LoadDB() {
