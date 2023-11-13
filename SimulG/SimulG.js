@@ -1,3 +1,4 @@
+const ver = '2.1';
 const G = 6.67E-11;
 const AU = 1.495978707E11; // 1 AU in meters
 const MAX_TRACE = 600;
@@ -277,7 +278,7 @@ export function SetAppLang(newLang) {
 	document.getElementById('labtime').innerHTML = ENFR('Duration:|Durée:');
 	document.getElementById('labscale').innerHTML = ENFR('Scale:|Échelle:');	
 	document.getElementById('labspeed').innerHTML = ENFR('Speed:|Vitesse:');
-	document.title = ENFR("Gravitational Simulator|Simulateur Gravitationnel");
+	document.title = ENFR("Gravitational Simulator|Simulateur Gravitationnel") + ' V ' + ver;
 	if (State) Start(State.ix);
 }
 function LoadDB() {
@@ -534,7 +535,7 @@ function Details() {
 	ctx.setTransform(1, 0, 0, 1, 0, 0);
 	ctx.font= fh + 'px Arial';
 	let dx0 = ctx.measureText('WWWWWWW').width; 
-	let dy0 = 20; if (touch) dy0 += 20 
+	let dy0 = fh + 5;
 	State.items.forEach((obj)=> { if(obj.details) {
 		ty = Math.round(dy0 + 2.3 * l++ * fh);
 		vallst = [];
