@@ -1,4 +1,4 @@
-const ver = '2.1';
+const ver = '2.11';
 const G = 6.67E-11;
 const AU = 1.495978707E11; // 1 AU in meters
 const MAX_TRACE = 600;
@@ -318,7 +318,7 @@ function LoadDB() {
 				x:-0.7226, y:-0.0429, z:0, vx:0, vy:0, vz:-35},
 			{name:"Earth|Terre", c:'#A0A0FF', r:6371, m:5.972E24,
 				x:0, y:0, z:1, vx:-29.786, vy:0, vz:0},
-			{name:"Moon|Lune", c:'#A0A0FF', r:1737.4, m:7.3477E22,
+			{name:"Moon|Lune", c:'#C0C0C0', r:1737.4, m:7.3477E22,
 				x:0, y:0, z:1.00256955529, vx:-30.78416208, vy:-0.08987384, vz:0}, 
 			{name:"Mars", c:'#F59C5A', r:3390, m:6.417E23,
 				x:1.5226, y:0.0505, z:0, vx:0, vy:0, vz:24.1}]},
